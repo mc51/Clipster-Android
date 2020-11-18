@@ -1,0 +1,59 @@
+apply plugin: 'com.android.application'
+
+android {
+
+    def keyProps = new Properties()
+    def keyPropsFile = rootProject.file('secret')
+
+    compileSdkVersion 29
+    buildToolsVersion "29.0.2"
+
+    signingConfigs {
+        // load from secret file for not sharing on git
+
+        if (keyPropsFile.exists()) {
+            keyProps.load(new FileInputStream(keyPropsFile))
+
+            clipster_key {
+                keyAlias keyProps['keyAlias']
+                keyPassword keyProps['keyPassword']
+                storeFile file(keyProps['storeFile'])
+                storePassword keyProps['storePassword']
+            }
+        }
+
+    }
+
+    defaultConfig {
+        applicationId "com.data_dive.com.clipster"
+        minSdkVersion 19
+        targetSdkVersion 29
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            if (keyPropsFile.exists()) {
+                signingConfig signingConfigs.clipster_key
+            }
+        }
+    }
+}
+
+repositories {
+    flatDir {
+        dirs'libs'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    implementation 'androidx.navigation:navigation-fragment:2.3.1'
+    implementation 'androidx.navigation:navigation-ui:2.3.1'
+}

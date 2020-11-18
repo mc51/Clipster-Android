@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Clipster</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="default_host">https://clipster.cc:9999</string>
+    <string name="toggle_get_keyword">clipster</string>
+    <string name="get_clip">Get Clipboard</string>
+    <string name="set_clip">Set Clipboard</string>
+    <string name="edit_creds">Edit Credentials</string>
+    <string name="button_delay_msg">Please wait a few seconds before retrying</string>
+    <string name="title_activity_main2">MainActivity</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+</resources>

@@ -1,6 +1,7 @@
+!gradle/wrapper/gradle-wrapper.properties
 .idea/
 *.iml
-.gradle
+# .gradle
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -17,9 +18,8 @@
 .cxx
 *.apk
 *.jks
-key*.properties
 *secret*
-*.jar
+# *.jar
 
 # Built application files
 *.apk
@@ -109,7 +109,3 @@ lint/tmp/
 
 # Android Profiling
 *.hprof
-
-
-
-

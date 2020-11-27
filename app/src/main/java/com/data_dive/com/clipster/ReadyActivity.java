@@ -26,9 +26,8 @@ public class ReadyActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(logtag, "onCreate");
 
-        checkForCreds();
-
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_ready);
 
         get_clip = findViewById(R.id.get_clip);
@@ -95,6 +94,7 @@ public class ReadyActivity extends AppCompatActivity {
             Intent i = new Intent(this, MainActivity.class);
             i.setAction(Intent.ACTION_EDIT);
             startActivity(i);
+            finish();
         }
     }
 }

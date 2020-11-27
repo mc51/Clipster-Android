@@ -16,6 +16,8 @@ public class Utils {
     private static final String PREF_FILE = "pref_file";
     private static final String PREF_IS_SAVED = "saved_id";
     private static final String PREF_CRED_SERVER = "cred_server";
+    private static final String PREF_CRED_USER = "cred_user";
+    private static final String PREF_CRED_PASSWORD = "cred_password";
     private static final String PREF_CRED_TOKEN = "cred_token";
 
     public static boolean areCredsSaved(Context context) {

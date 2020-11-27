@@ -13,9 +13,17 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
 
 /**
  * Singleton Class for Dealing with Client requests
@@ -103,6 +111,37 @@ public class NetClient {
         req.execute(request_uri, token_b64, "set_clip", payload);
     }
 
+    public static void disableSSLCertChecks() {
+        // Ignore Self signed SSL Certificated - Trust all certs
+        // https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
+        TrustManager[] trustAllCerts = new TrustManager[] {
+                new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                    public void checkClientTrusted(
+                            java.security.cert.X509Certificate[] certs, String authType) {
+                    }
+                    public void checkServerTrusted(
+                            java.security.cert.X509Certificate[] certs, String authType) {
+                    }
+                }
+        };
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String arg0, SSLSession arg1) {
+                    return true;
+                }
+            });
+        } catch (GeneralSecurityException e) {
+        }
+    }
+
     // Send Register request to API with Token + CODE
     public static class ClientRequest extends AsyncTask<String, Void, ArrayList> {
 
@@ -132,9 +171,11 @@ public class NetClient {
             }
             Log.d(logtag, request_uri + " " + mode + " " + token + " " + req_type + " " + payload);
 
+            disableSSLCertChecks();
+
             try {
                 URL url = new URL(request_uri);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
                 conn.setConnectTimeout(TIMEOUT_CONN);
                 conn.setRequestProperty("Content-type", "application/json; utf-8");
                 conn.setRequestProperty("Accept", "application/json");

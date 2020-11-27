@@ -15,12 +15,12 @@ public class MainActivity extends AppCompatActivity {
 
     public final static  String APP_NAME = "Clipster";
     private final static String logtag = "MainActivity";
-    private final static String SERVER_URI = "https://data-dive.com:9999";
     private final static int BUTTON_DELAY = 1000;
     boolean cred_exist = false;
     int num_clicks = 0;
     boolean throttle_clicks = false;
 
+    private String SERVER_URI;
     EditText password, user, server;
     TextView register, login;
     String usr, pw, srv;
@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(logtag,"on Resume: Check for creds");
         checkForCreds();
     }
 
@@ -37,24 +38,9 @@ public class MainActivity extends AppCompatActivity {
         Log.d(logtag, "Oncreate");
         super.onCreate(savedInstanceState);
 
-        // Start service and alarm check if not running
-        //Intent broadcastIntent = new Intent();
-        //broadcastIntent.setAction("restartservice");
-        //broadcastIntent.setClass(getApplicationContext(), Restarter.class);
-        //this.sendBroadcast(broadcastIntent);
+        SERVER_URI = getResources().getString(R.string.default_host);
 
-        // Get intent and action -> Edit Creds from ReadyActivity calls this
-        Intent intent = getIntent();
-        String action = intent.getAction();
-
-        if (Intent.ACTION_EDIT.equals(action)) {
-            // Allow user to edit credentials
-            Log.d(logtag, "Received ACTION_EDIT Intent. Allow to edit credentials.");
-        } else {
-            // if Creds are saved skip to ReadyActivity
-            Log.d(logtag, "Skip to check for Creds");
-            checkForCreds();
-        }
+        checkForCreds();
 
         setContentView(R.layout.activity_main);
 
@@ -98,12 +84,22 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void checkForCreds() {
-        if(!Utils.areCredsSaved(this)) {
-            Log.d(logtag, "Creds are not saved yet. Ask for them.");
+        // Get intent and action -> Edit Creds from ReadyActivity calls this
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        if (Intent.ACTION_EDIT.equals(action)) {
+            // Allow user to edit credentials
+            Log.d(logtag, "Received ACTION_EDIT Intent. Allow to edit credentials.");
         } else {
-            Log.d(logtag, "Creds available. Switch to Ready Activity.");
-            Intent i = new Intent(this, ReadyActivity.class);
-            startActivity(i);
+            // if Creds are saved skip to ReadyActivity
+            Log.d(logtag, "Skip to check for Creds");
+            if(!Utils.areCredsSaved(this)) {
+                Log.d(logtag, "Creds are not saved yet. Ask for them.");
+            } else {
+                Log.d(logtag, "Creds available. Switch to Ready Activity.");
+                Intent i = new Intent(this, ReadyActivity.class);
+                startActivity(i);
+            }
         }
     }
     private void prepareSetupRequest(String action) {

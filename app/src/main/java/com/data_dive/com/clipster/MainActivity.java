@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
     private String SERVER_URI;
     EditText password, user, server;
+    CheckBox ignore_cert;
     TextView register, login;
     String usr, pw, srv;
 
@@ -49,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
         server = findViewById(R.id.server);
         login = findViewById(R.id.login);
         register = findViewById(R.id.register);
+        ignore_cert = findViewById(R.id.ignore_cert);
 
         login.setOnClickListener(btnListener);
         login.setTag("login");
@@ -107,20 +110,24 @@ public class MainActivity extends AppCompatActivity {
         usr = user.getText().toString();
         pw = password.getText().toString();
         srv = server.getText().toString();
+        boolean ignore = ignore_cert.isChecked();
 
         if(srv.isEmpty()) {
             srv = SERVER_URI;
         }
 
+        Credentials creds = new Credentials(usr, pw, srv, ignore);
+
         if(!usr.isEmpty() && !pw.isEmpty()) {
             // Instance of class with Application context so its decoupled from Activity
-            NetClient client = new NetClient(this, srv, usr, pw);
+            Log.d(logtag, "Disable ssl certificate check: " + ignore);
+            NetClient client = new NetClient(this, creds);
             if(action.equals("login")) {
                 Log.d(logtag,"Calling login function");
                 client.Login();
             } else if(action.equals("register")) {
                 Log.d(logtag, "Calling register function");
-                client.Register(usr, pw);
+                client.Register();
             }
         } else {
             Toast.makeText(this, getString(R.string.app_name) +

@@ -3,7 +3,6 @@ package com.data_dive.com.clipster;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
-import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -38,31 +37,29 @@ public class NetClient {
     private static final int TIMEOUT_CONN = 5000;
     private static String SERVER_URI = "";
     private String token_b64 = "";
+    public static Credentials credentials;
 
     private final static String logtag = "NetworkClient";
     private final static String URI_REGISTER = "/register/";
     private final static String URI_VERIFY = "/verify-user/";
     private final static String URI_CLIP = "/copy-paste/";
-    // private static ArrayList<String> values = new ArrayList<String>();
 
     protected NetClient(Context context) {
         // Default constructor - we already have saved working credentials
         Log.d(logtag, "Default constructor. Getting creds.");
-        String[] creds = Utils.getCreds(context);
-        SERVER_URI = creds[0];
-        token_b64 = creds[1];
+        credentials = Utils.getCreds(context);
+        if(credentials.ignore_cert == true) {
+            disableSSLCertChecks();
+        }
         mContext = context;
     }
 
-    protected NetClient(Context context, String server, String user, String pw) {
+    protected NetClient(Context context, Credentials creds) {
         // Constructor before we have saved credentials
-        SERVER_URI = server;
-        String token = user + ":" + pw;
-        try {
-            byte[] token_byte = token.getBytes("UTF-8");
-            token_b64 = Base64.encodeToString(token_byte, Base64.NO_WRAP);
-        } catch (Exception UnsupportedEncodingException) {
-            Log.e(logtag, "UnsupportedEncodingException");
+        credentials = creds;
+        SERVER_URI = credentials.server;
+        if(credentials.ignore_cert == true) {
+            disableSSLCertChecks();
         }
         mContext = context;
     }
@@ -70,30 +67,30 @@ public class NetClient {
     protected void Login() {
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_VERIFY;
-        req.execute(request_uri, token_b64, "login", "");
+        req.execute(request_uri, credentials.token_b64, "login", "");
     }
 
-    protected void Register(String user, String pw) {
+    protected void Register() {
         // Register new account on server
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_REGISTER;
         String payload = "";
         JSONObject jsonPayload = new JSONObject();
         try {
-            jsonPayload.put("username", user);
-            jsonPayload.put("password", pw);
+            jsonPayload.put("username", credentials.user);
+            jsonPayload.put("password", credentials.pw);
             payload = jsonPayload.toString();
             Log.d(logtag, "Parsed text to json: " + payload);
         }  catch(JSONException e) {
             Log.e(logtag, "Could not parse text to json: " + payload);
         }
-        req.execute(request_uri, token_b64, "register", payload);
+        req.execute(request_uri, credentials.token_b64, "register", payload);
     }
 
     protected void GetClipFromServer() {
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_CLIP;
-        req.execute(request_uri, token_b64, "get_clip",  "");
+        req.execute(request_uri, credentials.token_b64, "get_clip",  "");
     }
 
     protected void SetClipOnServer(String clip) {
@@ -108,12 +105,15 @@ public class NetClient {
         }  catch(JSONException e) {
             Log.e(logtag, "Could not parse clip text to json: " + clip);
         }
-        req.execute(request_uri, token_b64, "set_clip", payload);
+        req.execute(request_uri, credentials.token_b64, "set_clip", payload);
     }
 
     public static void disableSSLCertChecks() {
-        // Ignore Self signed SSL Certificated - Trust all certs
-        // https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
+        /* Ignore Self signed SSL Certificated - Trust all certs
+           Don't check for hostname match
+           https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
+         */
+        Log.d(logtag, "Disabling SSL Cert Checks");
         TrustManager[] trustAllCerts = new TrustManager[] {
                 new X509TrustManager() {
                     public java.security.cert.X509Certificate[] getAcceptedIssuers() {
@@ -170,8 +170,6 @@ public class NetClient {
                 mode = "POST";
             }
             Log.d(logtag, request_uri + " " + mode + " " + token + " " + req_type + " " + payload);
-
-            disableSSLCertChecks();
 
             try {
                 URL url = new URL(request_uri);
@@ -277,13 +275,13 @@ public class NetClient {
         if (rsp_code.equals("200") || rsp_code.equals("201")) {
             if(rsp_req_type.equals("login")) {
                 Log.d(logtag, "Login successful - saving Used credentials to file");
-                Utils.saveCreds(mContext, rsp_server_uri, rsp_token);
+                Utils.saveCreds(mContext, credentials);
                 Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Login successful!",
                         Toast.LENGTH_LONG).show();
                 startReadyActivity(mContext);
             } else if(rsp_req_type.equals("register")) {
                 Log.d(logtag, "Registration successful - saving Used credentials to file");
-                Utils.saveCreds(mContext, rsp_server_uri, rsp_token);
+                Utils.saveCreds(mContext, credentials);
                 Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Registration successful!",
                         Toast.LENGTH_LONG).show();
                 startReadyActivity(mContext);

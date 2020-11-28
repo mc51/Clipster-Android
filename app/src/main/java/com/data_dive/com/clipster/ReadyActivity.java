@@ -10,7 +10,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 /**
- * Finished all authentication - listener mode
+ * Finished all authentication - Show main screen
+ *
  */
 
 public class ReadyActivity extends AppCompatActivity {

@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity {
 
     public final static String APP_NAME = "Clipster";
     private final static String logtag = "MainActivity";
-    private final static int BUTTON_DELAY = 2000;
+    private final static int BUTTON_DELAY = 3000;
 
     private String SERVER_URI;
     EditText password, user, server;
@@ -38,8 +38,6 @@ public class MainActivity extends AppCompatActivity {
 
         SERVER_URI = getResources().getString(R.string.default_host);
 
-        checkForCreds();
-
         setContentView(R.layout.activity_main);
 
         user = findViewById(R.id.user);
@@ -53,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
         login.setTag("login");
         register.setOnClickListener(btnListener);
         register.setTag("register");
+
+        checkForCreds();
     }
 
     private View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
@@ -64,12 +64,26 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private void displaySavedCredsAsDefaults() {
+        // Show saved credentials as default entries
+        if(Utils.areCredsSaved(this)) {
+            Log.d(logtag, "Creds saved, setting as defaults");
+            Credentials creds = Utils.getCreds(this);
+            user.setText(creds.user);
+            password.setText(creds.pw);
+            server.setText(creds.server);
+        } else {
+            Log.d(logtag, "Creds not saved. Not displaying defaults");
+        }
+    }
+
     private void checkForCreds() {
         // Get intent and action -> Edit Creds from ReadyActivity calls this
         Intent intent = getIntent();
         String action = intent.getAction();
         if (Intent.ACTION_EDIT.equals(action)) {
             // Allow user to edit credentials
+            displaySavedCredsAsDefaults();
             Log.d(logtag, "Received ACTION_EDIT Intent. Allow to edit credentials.");
         } else {
             // if Creds are saved skip to ReadyActivity

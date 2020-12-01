@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 /**
  * Finished all authentication - Show main screen
@@ -18,10 +17,8 @@ public class ReadyActivity extends AppCompatActivity {
 
     public final static  String APP_NAME = "Clipster";
     public final String logtag = this.getClass().getSimpleName();
-    private static final int BUTTON_DELAY = 5000;
-    int num_clicks = 0;
-    boolean throttle_clicks = false;
-    TextView get_clip, set_clip, edit_creds;
+    private static final int BUTTON_DELAY = 3000;
+    TextView get_clip, set_clip, edit_creds, server;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +27,9 @@ public class ReadyActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_ready);
+
+        server = findViewById(R.id.active_server);
+        setActiveServerAddress();
 
         get_clip = findViewById(R.id.get_clip);
         set_clip = findViewById(R.id.set_clip);
@@ -43,32 +43,26 @@ public class ReadyActivity extends AppCompatActivity {
         edit_creds.setTag("edit_creds");
     }
 
-    private View.OnClickListener btnListener = new View.OnClickListener() {
-        public void onClick(View v) {
+    private View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
+        public void onDebouncedClick(View v) {
             // Delay excessive clicks
             String action_tag = v.getTag().toString();
             Log.d(logtag, "Clicked Button: " + action_tag);
-            num_clicks += 1;
-
-            if(num_clicks % 3 != 0 && !throttle_clicks) {
-                prepareClipRequest(action_tag);
-            } else {
-                throttle_clicks = true;
-                Toast.makeText(getBaseContext(), APP_NAME + " - " + getString(R.string.button_delay_msg),
-                        Toast.LENGTH_LONG).show();
-                get_clip.setEnabled(false);
-                set_clip.setEnabled(false);
-                get_clip.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        get_clip.setEnabled(true);
-                        set_clip.setEnabled(true);
-                        throttle_clicks = false;
-                    }
-                }, BUTTON_DELAY);
-            }
+            prepareClipRequest(action_tag);
         }
     };
+
+    private void setActiveServerAddress() {
+        // set currently used server address
+        if(Utils.areCredsSaved(this)) {
+            Log.d(logtag, "Creds saved, getting active server address");
+            Credentials creds = Utils.getCreds(this);
+            server.setText(creds.server);
+        } else {
+            Log.d(logtag, "Creds not saved. Not displaying active server");
+            server.setText("No saved server");
+        }
+    }
 
     private void checkForCreds() {
         if(!Utils.areCredsSaved(this)) {

@@ -36,8 +36,7 @@ public class NetClient {
 
     private static final int TIMEOUT_CONN = 5000;
     private static String SERVER_URI = "";
-    private String token_b64 = "";
-    public static Credentials credentials;
+    private static Credentials credentials;
 
     private final static String logtag = "NetworkClient";
     private final static String URI_REGISTER = "/register/";
@@ -48,7 +47,9 @@ public class NetClient {
         // Default constructor - we already have saved working credentials
         Log.d(logtag, "Default constructor. Getting creds.");
         credentials = Utils.getCreds(context);
-        if(credentials.ignore_cert == true) {
+        SERVER_URI = credentials.server;
+        Log.d(logtag, "Default constructor, SERVER: " + SERVER_URI);
+        if(credentials.ignore_cert) {
             disableSSLCertChecks();
         }
         mContext = context;
@@ -58,7 +59,7 @@ public class NetClient {
         // Constructor before we have saved credentials
         credentials = creds;
         SERVER_URI = credentials.server;
-        if(credentials.ignore_cert == true) {
+        if(credentials.ignore_cert) {
             disableSSLCertChecks();
         }
         mContext = context;

@@ -11,6 +11,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+/**
+ *  Launcher Activity which checks if we need to setup first or can go straight to ready mode
+ */
+
 public class MainActivity extends AppCompatActivity {
 
     public final static String APP_NAME = "Clipster";
@@ -131,11 +135,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(logtag, "Calling register function");
                 client.Register();
             }
+
         }
     }
 
     private String formatURIProtocol(String server) {
-        // Make sure we always use https://
+        // Make sure we always use https:// and have no trailing slashes in URI
         server = server.replaceFirst("/*$", "");
         try {
             if (server.substring(0, 7).toLowerCase().contains("http://")) {

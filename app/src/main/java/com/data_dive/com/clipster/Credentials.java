@@ -4,7 +4,7 @@ import android.util.Base64;
 import android.util.Log;
 
 /**
- * Class to define credentials object to pass around
+ *  Define credentials object to pass around functions and activities
  */
 
 public final class Credentials {

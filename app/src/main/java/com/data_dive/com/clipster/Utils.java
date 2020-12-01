@@ -9,6 +9,9 @@ import android.util.Log;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
 
+/**
+ * implement common functions that are used in different Activities / Classes
+ */
 
 public class Utils {
 
@@ -22,19 +25,18 @@ public class Utils {
     private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
 
     public static boolean areCredsSaved(Context context) {
-        // Check if creds are saved to file
+        // Check if creds are saved to file already
         Log.d(logtag, "AreCredsSaved");
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         return pref.getBoolean(PREF_IS_SAVED, false);
     }
 
     public static void saveCreds(Context context, Credentials creds) {
-        // Save Creds to file
+        // Save Creds to shared preferences file
         Log.d(logtag, creds.toString());
         Log.d(logtag, "saveCreds - User: " + creds.user + "PW: " + creds.pw
                 + "Server: " + creds.server + " Token: " + creds.token_b64
                 + "Ignore Cert: " + creds.ignore_cert);
-
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
         editor.putString(PREF_CRED_USER, creds.user);
@@ -57,12 +59,11 @@ public class Utils {
         Credentials creds = new Credentials(user, pw, server, ignore_cert);
         Log.d(logtag, "getCreds: " + user + " " + pw + " " + " " + server
                 + " " + ignore_cert);
-
         return creds;
     }
 
     public static void clearCreds(Context context) {
-        // Clear all saved files
+        // Clear all saved shared pref files
         Log.d(logtag, "Clearning creds from file");
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();

@@ -64,16 +64,6 @@ public class ReadyActivity extends AppCompatActivity {
         }
     }
 
-    private void checkForCreds() {
-        if(!Utils.areCredsSaved(this)) {
-            Log.d(logtag, "Creds are not saved yet. Start Main and ask for them.");
-            Intent i = new Intent(this, MainActivity.class);
-            startActivity(i);
-        } else {
-            Log.d(logtag, "Creds available. Stay in Ready Activity.");
-        }
-    }
-
     private void prepareClipRequest(String action) {
         if(action.equals("get_clip")) {
             Log.d(logtag,"Calling GetClip function");

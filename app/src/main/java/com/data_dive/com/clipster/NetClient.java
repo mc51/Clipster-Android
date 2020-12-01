@@ -38,7 +38,7 @@ public class NetClient {
     private static String SERVER_URI = "";
     private static Credentials credentials;
 
-    private final static String logtag = "NetworkClient";
+    private final static String logtag = "NetClient";
     private final static String URI_REGISTER = "/register/";
     private final static String URI_VERIFY = "/verify-user/";
     private final static String URI_CLIP = "/copy-paste/";
@@ -110,9 +110,9 @@ public class NetClient {
     }
 
     public static void disableSSLCertChecks() {
-        /* Ignore Self signed SSL Certificated - Trust all certs
-           Don't check for hostname match
-           https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
+        /** Ignore Self signed SSL Certificated - Trust all certs
+         *  Don't check for hostname match either
+         *  https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
          */
         Log.d(logtag, "Disabling SSL Cert Checks");
         TrustManager[] trustAllCerts = new TrustManager[] {
@@ -143,7 +143,7 @@ public class NetClient {
         }
     }
 
-    // Send Register request to API with Token + CODE
+    // Send request to API on server
     public static class ClientRequest extends AsyncTask<String, Void, ArrayList> {
 
         private Context mContext;

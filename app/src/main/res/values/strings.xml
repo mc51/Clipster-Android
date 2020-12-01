@@ -3,6 +3,7 @@
     <string name="login">Login</string>
     <string name="register">Register</string>
     <string name="default_host">https://clipster.cc:9999</string>
+    <string name="ignore_cert_radio">Disable SSL certificate check (only use with own server)</string>
     <string name="toggle_get_keyword">clipster</string>
     <string name="get_clip">Get Clipboard</string>
     <string name="set_clip">Set Clipboard</string>
@@ -14,7 +15,5 @@
     <string name="second_fragment_label">Second Fragment</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
-
-    <string name="hello_first_fragment">Hello first fragment</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="msg_warn_clicking_too_fast">Slow down! Your clicking too fast</string>
 </resources>

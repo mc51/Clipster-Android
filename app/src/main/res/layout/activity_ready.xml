@@ -26,7 +26,7 @@
                     android:contentDescription="host icon"
                     android:src="@drawable/cloud" />
                 <TextView
-                    android:id="@+id/server"
+                    android:id="@+id/active_server"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="15dp"

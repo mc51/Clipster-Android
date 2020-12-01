@@ -99,6 +99,27 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#4a5a71"></LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp">
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/open_padlock" />
+                <CheckBox
+                    android:id="@+id/ignore_cert"
+                    android:text="@string/ignore_cert_radio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColorHint="#b2b2b2"
+                    android:layout_marginLeft="15dp"
+                    android:background="#00000000"
+                    android:textSize="14dp"
+                    android:textColor="#000000"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
     <LinearLayout

@@ -16,7 +16,10 @@ public class Utils {
     private static final String PREF_FILE = "pref_file";
     private static final String PREF_IS_SAVED = "saved_id";
     private static final String PREF_CRED_SERVER = "cred_server";
+    private static final String PREF_CRED_USER = "cred_user";
+    private static final String PREF_CRED_PASSWORD = "cred_password";
     private static final String PREF_CRED_TOKEN = "cred_token";
+    private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file
@@ -25,24 +28,36 @@ public class Utils {
         return pref.getBoolean(PREF_IS_SAVED, false);
     }
 
-    public static void saveCreds(Context context, String server, String token) {
+    public static void saveCreds(Context context, Credentials creds) {
         // Save Creds to file
-        Log.d(logtag, "saveCreds - Server: " + server + " Token: " + token);
+        Log.d(logtag, creds.toString());
+        Log.d(logtag, "saveCreds - User: " + creds.user + "PW: " + creds.pw
+                + "Server: " + creds.server + " Token: " + creds.token_b64
+                + "Ignore Cert: " + creds.ignore_cert);
+
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
-        editor.putString(PREF_CRED_SERVER, server);
-        editor.putString(PREF_CRED_TOKEN, token);
+        editor.putString(PREF_CRED_USER, creds.user);
+        editor.putString(PREF_CRED_PASSWORD, creds.pw);
+        editor.putString(PREF_CRED_TOKEN, creds.token_b64);
+        editor.putString(PREF_CRED_SERVER, creds.server);
+        editor.putBoolean(PREF_CRED_IGNORE_CERT, creds.ignore_cert);
         editor.putBoolean(PREF_IS_SAVED, true);
         editor.apply();
     }
 
-    public static String[] getCreds(Context context) {
-        // Get and return saved Creds from file
+    public static Credentials getCreds(Context context) {
+        // Read credentials from file and create Credentials object
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
-        String[] creds = new String[2];
-        creds[0] = pref.getString(PREF_CRED_SERVER, "");
-        creds[1] = pref.getString(PREF_CRED_TOKEN, "");
-        Log.d(logtag, "getCreds - Server: " + creds[0] + " Token: " + creds[1]);
+        String user = pref.getString(PREF_CRED_USER, "");
+        String pw = pref.getString(PREF_CRED_PASSWORD, "");
+        String server = pref.getString(PREF_CRED_SERVER, "");
+        boolean ignore_cert = pref.getBoolean(PREF_CRED_IGNORE_CERT, false);
+
+        Credentials creds = new Credentials(user, pw, server, ignore_cert);
+        Log.d(logtag, "getCreds: " + user + " " + pw + " " + " " + server
+                + " " + ignore_cert);
+
         return creds;
     }
 

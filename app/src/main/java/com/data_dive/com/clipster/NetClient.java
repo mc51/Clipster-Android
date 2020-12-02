@@ -31,7 +31,6 @@ import java.security.cert.X509Certificate;
 
 public class NetClient {
 
-    private static NetClient instance;
     private static Context mContext;
 
     private static final int TIMEOUT_CONN = 5000;
@@ -51,6 +50,8 @@ public class NetClient {
         Log.d(logtag, "Default constructor, SERVER: " + SERVER_URI);
         if(credentials.ignore_cert) {
             disableSSLCertChecks();
+        } else {
+            enableSSLCertChecks();
         }
         mContext = context;
     }
@@ -61,6 +62,8 @@ public class NetClient {
         SERVER_URI = credentials.server;
         if(credentials.ignore_cert) {
             disableSSLCertChecks();
+        } else {
+            enableSSLCertChecks();
         }
         mContext = context;
     }
@@ -140,6 +143,20 @@ public class NetClient {
                 }
             });
         } catch (GeneralSecurityException e) {
+        }
+    }
+
+    public static void enableSSLCertChecks() {
+        // Reenable SSL Certification Checks
+        Log.d(logtag, "Enabling SSL Cert Checks");
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, null, null);
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
+        } catch (GeneralSecurityException e) {
+            Log.e(logtag, "Error enabling SSL Cert: " + e.toString());
         }
     }
 

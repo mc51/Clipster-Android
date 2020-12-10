@@ -13,10 +13,10 @@ import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
 import com.macasaet.fernet.TokenExpiredException;
+import com.macasaet.fernet.TokenValidationException;
 
 import java.time.Duration;
 import java.time.temporal.TemporalAmount;
-import java.util.Base64;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
 
@@ -35,7 +35,7 @@ public class Utils {
     private static final String PREF_CRED_PASSWORD = "cred_password";
     private static final String PREF_CRED_TOKEN = "cred_token";
     private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
-    private static final Integer TTL_CRYPT_TOKEN = 3650;
+    private static final Integer CRYPT_TOKEN_TTL = 3650;
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file already
@@ -105,36 +105,39 @@ public class Utils {
         return clip;
     }
 
-    public static void cryptTest() {
+    public static String encryptText(Context context, String text) {
+        // Encrypt Text with Fernet  using key and output b64 representation
+        Credentials credentials = getCreds(context);
+        Key key = credentials.encryption_key;
+        Token token = Token.generate(key, text);
+        return token.serialise();
+    }
 
-        String password = "mypassword";
-        String hash = "";
-        try {
-            byte[] salt = password.getBytes("UTF-8");
-            String h = Hash.password(password.toCharArray()).algorithm(Type.PBKDF2_SHA512).
-                    salt(salt).hashLength(32).factor(200000).create();
-            hash = h;
-        } catch (Exception e) {
-            Log.e(logtag, "Error creating hash for Key: " + e);
-        }
+    public static String decryptText(Context context, String text) {
+        // Decrypt Text with Fernet using key
+        Credentials credentials = getCreds(context);
+        Key key = credentials.encryption_key;
+        String cleartext = "";
 
-        Log.d(logtag," HASH :" + hash.split(":")[6]);
-
-        Key key = new Key(hash);
-        Token token = Token.fromString("gAAAAABf0WmjpuMH4qXhb6B2DaN57pGFvmRuZ-taGqCSc4QKg2BoaYvkMg-N4o0bD2JeRgT5L3PR1sD5wzk8Bc38TmIIl3vrIA==");
+        Token token = Token.fromString(text);
         StringValidator validator = new StringValidator() {
             @Override
             public TemporalAmount getTimeToLive() {
                 // need to overwrite in order to set ttl of token
-                return Duration.ofDays(TTL_CRYPT_TOKEN);
+                return Duration.ofDays(CRYPT_TOKEN_TTL);
             }
         };
-        String payload = "";
+
         try {
-            payload = token.validateAndDecrypt(key, validator);
+            cleartext = token.validateAndDecrypt(key, validator);
         } catch (TokenExpiredException e) {
-            Log.e(logtag, "Exception : " + e);
+            Log.e(logtag, "Decrypt Error : " + e);
+            cleartext = "ERROR: Could not decrypt clip";
+        } catch (TokenValidationException e) {
+            Log.e(logtag, "Decrypt Error:" + e);
+            cleartext = "ERROR: Could not decrypt clip";
         }
-        Log.d(logtag, "CRYPTO: " + payload);
+        Log.d(logtag, "CRYPTO: " + cleartext);
+        return cleartext;
     }
 }

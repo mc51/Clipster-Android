@@ -26,46 +26,47 @@ import java.security.cert.X509Certificate;
 
 /**
  * Singleton Class for Dealing with Client requests
- * Use Async subclass for http requests
+ * Async subclass for http requests
+ * I guess this is really ugly: how would you do it properly?
  */
 
 public class NetClient {
 
-    private static Context mContext;
-
-    private static final int TIMEOUT_CONN = 5000;
-    private static String SERVER_URI = "";
-    private static Credentials credentials;
-
     private final static String logtag = "NetClient";
+    private static final int TIMEOUT_CONN = 5000;
     private final static String URI_REGISTER = "/register/";
     private final static String URI_VERIFY = "/verify-user/";
     private final static String URI_CLIP = "/copy-paste/";
 
+    private static Context mContext;
+    private static Credentials credentials;
+    private static String SERVER_URI = "";
+    private static String clip_clear = "";
+
     protected NetClient(Context context) {
         // Default constructor - we already have saved working credentials
         Log.d(logtag, "Default constructor. Getting creds.");
-        credentials = Utils.getCreds(context);
-        SERVER_URI = credentials.server;
+        this.credentials = Utils.getCreds(context);
+        this.SERVER_URI = credentials.server;
         Log.d(logtag, "Default constructor, SERVER: " + SERVER_URI);
-        if(credentials.ignore_cert) {
+        if(this.credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
             enableSSLCertChecks();
         }
-        mContext = context;
+        this.mContext = context;
     }
 
     protected NetClient(Context context, Credentials creds) {
         // Constructor before we have saved credentials
-        credentials = creds;
-        SERVER_URI = credentials.server;
-        if(credentials.ignore_cert) {
+        this.credentials = creds;
+        this.SERVER_URI = credentials.server;
+        if(this.credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
             enableSSLCertChecks();
         }
-        mContext = context;
+        this.mContext = context;
     }
 
     protected void Login() {
@@ -98,18 +99,21 @@ public class NetClient {
     }
 
     protected void SetClipOnServer(String clip) {
+        // Encrypt clip and create Payload for calling request
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_CLIP;
         String payload = "";
         JSONObject jsonPayload = new JSONObject();
+        this.clip_clear = clip;
+        String clip_encrypted = Utils.encryptText(this.mContext, clip);
         try {
-            jsonPayload.put("text", clip);
+            jsonPayload.put("text", clip_encrypted);
             payload = jsonPayload.toString();
             Log.d(logtag, "Parsed text to json: " + payload);
         }  catch(JSONException e) {
             Log.e(logtag, "Could not parse clip text to json: " + clip);
         }
-        req.execute(request_uri, credentials.token_b64, "set_clip", payload);
+        req.execute(request_uri, this.credentials.token_b64, "set_clip", payload);
     }
 
     public static void disableSSLCertChecks() {
@@ -256,6 +260,7 @@ public class NetClient {
 
     private static void handleRequestAnswer(ArrayList values) {
         // Called from NetClient class when http request finishes
+        // TODO: use custom Object as with Credentials might be a lot nicer
         String clip_text = "";
         String error_text = "";
         String rsp_server_uri = "";
@@ -305,12 +310,14 @@ public class NetClient {
                 startReadyActivity(mContext);
             } else if(rsp_req_type.equals("get_clip")) {
                 Log.d(logtag, "Get_clip successful: " + rsp_msg);
-                Utils.setClipboard(mContext, rsp_msg);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Got new clip:\n" + rsp_msg,
+                String clip_clear  = Utils.decryptText(mContext, rsp_msg);
+                Log.d(logtag, "Get_clip successful: " + clip_clear);
+                Utils.setClipboard(mContext, clip_clear);
+                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Got new clip:\n" + clip_clear,
                         Toast.LENGTH_LONG).show();
             } else if(rsp_req_type.equals("set_clip")) {
-                Log.d(logtag, "Set_clip successful: " + rsp_msg);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Set clip to:\n" + rsp_msg,
+                Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clip_clear);
+                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Set clip to:\n" + clip_clear,
                         Toast.LENGTH_LONG).show();
             }
         } else {
@@ -321,7 +328,7 @@ public class NetClient {
     }
 
     private static void startReadyActivity(Context context) {
-        // Login successful go to Ready Screen
+        // Login successful switch to Ready Screen
         Log.d(logtag, "startReadyActivity");
         try {
             Intent i = new Intent(context, ReadyActivity.class);

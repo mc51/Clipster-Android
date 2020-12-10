@@ -9,7 +9,8 @@ import android.view.View;
 import android.widget.TextView;
 
 /**
- * Finished all authentication - Show main screen
+ * We're authenticated - Show main screen
+ * Deal with button clicks -> requests
  *
  */
 

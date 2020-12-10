@@ -26,10 +26,10 @@ android {
 
     defaultConfig {
         applicationId "com.data_dive.com.clipster"
-        minSdkVersion 19
-        targetSdkVersion 29
-        versionCode 3
-        versionName "0.2.1"
+        minSdkVersion 26
+        targetSdkVersion 30
+        versionCode 4
+        versionName "0.2.2"
     }
 
     buildTypes {
@@ -42,6 +42,13 @@ android {
             }
         }
     }
+
+    // Needed for fernet-java8, otherwise strange untrackable behaviour
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
 }
 
 repositories {
@@ -54,6 +61,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-    implementation 'androidx.navigation:navigation-fragment:2.3.1'
-    implementation 'androidx.navigation:navigation-ui:2.3.1'
+    implementation 'androidx.navigation:navigation-fragment:2.3.2'
+    implementation 'androidx.navigation:navigation-ui:2.3.2'
+    implementation 'com.macasaet.fernet:fernet-java8:1.4.2'
+    implementation 'com.amdelamar:jhash:2.2.0'
 }

@@ -7,7 +7,19 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.amdelamar.jhash.Hash;
+import com.amdelamar.jhash.algorithms.Type;
+import com.macasaet.fernet.Key;
+import com.macasaet.fernet.StringValidator;
+import com.macasaet.fernet.Token;
+import com.macasaet.fernet.TokenExpiredException;
+
+import java.time.Duration;
+import java.time.temporal.TemporalAmount;
+import java.util.Base64;
+
 import static android.content.Context.CLIPBOARD_SERVICE;
+
 
 /**
  * implement common functions that are used in different Activities / Classes
@@ -23,6 +35,7 @@ public class Utils {
     private static final String PREF_CRED_PASSWORD = "cred_password";
     private static final String PREF_CRED_TOKEN = "cred_token";
     private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
+    private static final Integer TTL_CRYPT_TOKEN = 3650;
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file already
@@ -90,5 +103,38 @@ public class Utils {
             }
         }
         return clip;
+    }
+
+    public static void cryptTest() {
+
+        String password = "mypassword";
+        String hash = "";
+        try {
+            byte[] salt = password.getBytes("UTF-8");
+            String h = Hash.password(password.toCharArray()).algorithm(Type.PBKDF2_SHA512).
+                    salt(salt).hashLength(32).factor(200000).create();
+            hash = h;
+        } catch (Exception e) {
+            Log.e(logtag, "Error creating hash for Key: " + e);
+        }
+
+        Log.d(logtag," HASH :" + hash.split(":")[6]);
+
+        Key key = new Key(hash);
+        Token token = Token.fromString("gAAAAABf0WmjpuMH4qXhb6B2DaN57pGFvmRuZ-taGqCSc4QKg2BoaYvkMg-N4o0bD2JeRgT5L3PR1sD5wzk8Bc38TmIIl3vrIA==");
+        StringValidator validator = new StringValidator() {
+            @Override
+            public TemporalAmount getTimeToLive() {
+                // need to overwrite in order to set ttl of token
+                return Duration.ofDays(TTL_CRYPT_TOKEN);
+            }
+        };
+        String payload = "";
+        try {
+            payload = token.validateAndDecrypt(key, validator);
+        } catch (TokenExpiredException e) {
+            Log.e(logtag, "Exception : " + e);
+        }
+        Log.d(logtag, "CRYPTO: " + payload);
     }
 }

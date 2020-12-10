@@ -11,6 +11,13 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.macasaet.fernet.Key;
+import com.macasaet.fernet.StringValidator;
+import com.macasaet.fernet.Token;
+import com.macasaet.fernet.Validator;
+
+import java.util.function.Function;
+
 /**
  *  Launcher Activity which checks if we need to setup first or can go straight to ready mode
  */
@@ -43,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
         SERVER_URI = getResources().getString(R.string.default_host);
 
         setContentView(R.layout.activity_main);
+
+
+        Utils.cryptTest();
 
         user = findViewById(R.id.user);
         password = findViewById(R.id.pw);

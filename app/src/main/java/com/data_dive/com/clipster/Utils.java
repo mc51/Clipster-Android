@@ -7,17 +7,19 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.amdelamar.jhash.Hash;
+import com.amdelamar.jhash.algorithms.Type;
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
 import com.macasaet.fernet.TokenExpiredException;
 import com.macasaet.fernet.TokenValidationException;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.TemporalAmount;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
-
 
 /**
  * implement common functions that are used in different Activities / Classes
@@ -26,14 +28,20 @@ import static android.content.Context.CLIPBOARD_SERVICE;
 public class Utils {
 
     private static String logtag = "Utils";
+
     private static final String PREF_FILE = "pref_file";
     private static final String PREF_IS_SAVED = "saved_id";
     private static final String PREF_CRED_SERVER = "cred_server";
     private static final String PREF_CRED_USER = "cred_user";
-    private static final String PREF_CRED_PASSWORD = "cred_password";
+    private static final String PREF_CRED_LOGIN_PW_HASH = "cred_login_pw_hash";
+    private static final String PREF_CRED_MSG_PW_HASH = "cred_msg_pw_hash";
     private static final String PREF_CRED_TOKEN = "cred_token";
     private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
+
     private static final Integer CRYPT_TOKEN_TTL = 3650;
+    public static final Integer CRYPT_ITERS_LOGIN_HASH = 20000;
+    public static final Integer CRYPT_ITERS_MSG_HASH = 10000;
+    private static final Integer CRYPT_HASH_LENGTH = 32;
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file already
@@ -45,13 +53,16 @@ public class Utils {
     public static void saveCreds(Context context, Credentials creds) {
         // Save Creds to shared preferences file
         Log.d(logtag, creds.toString());
-        Log.d(logtag, "saveCreds - User: " + creds.user + "PW: " + creds.pw
-                + "Server: " + creds.server + " Token: " + creds.token_b64
-                + "Ignore Cert: " + creds.ignore_cert);
+        Log.d(logtag, "saveCreds - User: " + creds.user + " PW: " + creds.pw
+                + " Server: " + creds.server + " Token: " + creds.token_b64
+                + " Ignore Cert: " + creds.ignore_cert
+                + " Login PW Hash: " + creds.login_pw_hash
+                + " Msg PW Hash: " + creds.msg_pw_hash);
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
         editor.putString(PREF_CRED_USER, creds.user);
-        editor.putString(PREF_CRED_PASSWORD, creds.pw);
+        editor.putString(PREF_CRED_LOGIN_PW_HASH, creds.login_pw_hash);
+        editor.putString(PREF_CRED_MSG_PW_HASH, creds.msg_pw_hash);
         editor.putString(PREF_CRED_TOKEN, creds.token_b64);
         editor.putString(PREF_CRED_SERVER, creds.server);
         editor.putBoolean(PREF_CRED_IGNORE_CERT, creds.ignore_cert);
@@ -63,13 +74,15 @@ public class Utils {
         // Read credentials from file and create Credentials object
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         String user = pref.getString(PREF_CRED_USER, "");
-        String pw = pref.getString(PREF_CRED_PASSWORD, "");
+        String login_pw_hash = pref.getString(PREF_CRED_LOGIN_PW_HASH, "");
+        String msg_pw_hash = pref.getString(PREF_CRED_MSG_PW_HASH, "");
         String server = pref.getString(PREF_CRED_SERVER, "");
         boolean ignore_cert = pref.getBoolean(PREF_CRED_IGNORE_CERT, false);
 
-        Credentials creds = new Credentials(user, pw, server, ignore_cert);
-        Log.d(logtag, "getCreds: " + user + " " + pw + " " + " " + server
-                + " " + ignore_cert);
+        Credentials creds = new Credentials(user, "", login_pw_hash, msg_pw_hash, server, ignore_cert);
+
+        Log.d(logtag, "getCreds: " + user + " " + login_pw_hash + " " + msg_pw_hash + " "
+                + server + " " + ignore_cert);
         return creds;
     }
 
@@ -101,6 +114,31 @@ public class Utils {
             }
         }
         return clip;
+    }
+
+    public static String stringToHash(String username, String text, Integer iters) {
+        /**
+         * Create a hash representation of text using PBKDF2
+         */
+        String hash = "";
+        String salt_string = "clipster_"+username+"_"+text;
+        try {
+            byte[] salt = salt_string.getBytes(StandardCharsets.UTF_8);
+            String h = Hash.password(text.toCharArray())
+                    .algorithm(Type.PBKDF2_SHA256)
+                    .salt(salt)
+                    .hashLength(CRYPT_HASH_LENGTH)
+                    .factor(iters)
+                    .create();
+            hash = h.split(":")[6]; // jhash returns 7 concatenated strings, last one is hash
+            Log.d(logtag, "JHash output: " + h);
+        } catch (Exception e) {
+            Log.e(logtag, "Error creating Hash for Key: " + e);
+        }
+        // jHash uses b64 standard i.e. not urlsafe encoding "/" "+" -> "_" "-"
+        hash = hash.replace("/","_").replace("+", "-");
+        Log.d(logtag, "Hash : " + hash);
+        return hash;
     }
 
     public static String encryptText(Context context, String text) {

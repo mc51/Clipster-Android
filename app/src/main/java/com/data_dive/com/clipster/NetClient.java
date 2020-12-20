@@ -1,5 +1,6 @@
 package com.data_dive.com.clipster;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -12,7 +13,9 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 
@@ -26,14 +29,15 @@ import java.security.cert.X509Certificate;
 
 /**
  * Singleton Class for Dealing with Client requests
- * Async subclass for http requests
+ * Async subclass for https requests
  * I guess this is really ugly: how would you do it properly?
+ * TODO: Could clean up returns of request by using Object instead of Array
  */
 
 public class NetClient {
 
     private final static String logtag = "NetClient";
-    private static final int TIMEOUT_CONN = 5000;
+    private static final int TIMEOUT_CONN = 8000;
     private final static String URI_REGISTER = "/register/";
     private final static String URI_VERIFY = "/verify-user/";
     private final static String URI_CLIP = "/copy-paste/";
@@ -46,32 +50,33 @@ public class NetClient {
     protected NetClient(Context context) {
         // Default constructor - we already have saved working credentials
         Log.d(logtag, "Default constructor. Getting creds.");
-        this.credentials = Utils.getCreds(context);
-        this.SERVER_URI = credentials.server;
+        credentials = Utils.getCreds(context);
+        SERVER_URI = credentials.server;
         Log.d(logtag, "Default constructor, SERVER: " + SERVER_URI);
-        if(this.credentials.ignore_cert) {
+        if(credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
             enableSSLCertChecks();
         }
-        this.mContext = context;
+        mContext = context;
     }
 
     protected NetClient(Context context, Credentials creds) {
         // Constructor before we have saved credentials
-        this.credentials = creds;
-        this.SERVER_URI = credentials.server;
-        if(this.credentials.ignore_cert) {
+        credentials = creds;
+        SERVER_URI = credentials.server;
+        if(credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
             enableSSLCertChecks();
         }
-        this.mContext = context;
+        mContext = context;
     }
 
     protected void Login() {
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_VERIFY;
+        Log.d(logtag," Login function. Token: " + credentials.token_b64);
         req.execute(request_uri, credentials.token_b64, "login", "");
     }
 
@@ -83,7 +88,7 @@ public class NetClient {
         JSONObject jsonPayload = new JSONObject();
         try {
             jsonPayload.put("username", credentials.user);
-            jsonPayload.put("password", credentials.pw);
+            jsonPayload.put("password", credentials.login_pw_hash);
             payload = jsonPayload.toString();
             Log.d(logtag, "Parsed text to json: " + payload);
         }  catch(JSONException e) {
@@ -104,8 +109,8 @@ public class NetClient {
         String request_uri = SERVER_URI + URI_CLIP;
         String payload = "";
         JSONObject jsonPayload = new JSONObject();
-        this.clip_clear = clip;
-        String clip_encrypted = Utils.encryptText(this.mContext, clip);
+        clip_clear = clip;
+        String clip_encrypted = Utils.encryptText(mContext, clip);
         try {
             jsonPayload.put("text", clip_encrypted);
             payload = jsonPayload.toString();
@@ -113,7 +118,7 @@ public class NetClient {
         }  catch(JSONException e) {
             Log.e(logtag, "Could not parse clip text to json: " + clip);
         }
-        req.execute(request_uri, this.credentials.token_b64, "set_clip", payload);
+        req.execute(request_uri, credentials.token_b64, "set_clip", payload);
     }
 
     public static void disableSSLCertChecks() {
@@ -127,9 +132,11 @@ public class NetClient {
                     public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                         return new X509Certificate[0];
                     }
+                    @SuppressLint("TrustAllX509TrustManager")
                     public void checkClientTrusted(
                             java.security.cert.X509Certificate[] certs, String authType) {
                     }
+                    @SuppressLint("TrustAllX509TrustManager")
                     public void checkServerTrusted(
                             java.security.cert.X509Certificate[] certs, String authType) {
                     }
@@ -141,19 +148,21 @@ public class NetClient {
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
             HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                @SuppressLint("BadHostnameVerifier")
                 @Override
                 public boolean verify(String arg0, SSLSession arg1) {
                     return true;
                 }
             });
         } catch (GeneralSecurityException e) {
+            Log.e(logtag, e.toString());
         }
     }
 
     public static void enableSSLCertChecks() {
-        // Reenable SSL Certification Checks
+        // Re-enable SSL Certification Checks
         Log.d(logtag, "Enabling SSL Cert Checks");
-        // Install the all-trusting trust manager
+        // Install standard trust manager
         try {
             SSLContext sc = SSLContext.getInstance("SSL");
             sc.init(null, null, null);
@@ -167,7 +176,6 @@ public class NetClient {
     // Send request to API on server
     public static class ClientRequest extends AsyncTask<String, Void, ArrayList> {
 
-        private Context mContext;
         private ArrayList<String> return_values = new ArrayList<String>();
 
         private ClientRequest(Context context) {
@@ -188,7 +196,7 @@ public class NetClient {
 
             String mode = "GET";
             if (!payload.isEmpty()) {
-                // if we have a payload then we post it
+                // if we have a payload, we post it
                 mode = "POST";
             }
             Log.d(logtag, request_uri + " " + mode + " " + token + " " + req_type + " " + payload);
@@ -210,7 +218,7 @@ public class NetClient {
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
                     try (OutputStream os = conn.getOutputStream()) {
-                        byte[] input = payload.getBytes("UTF-8");
+                        byte[] input = payload.getBytes(StandardCharsets.UTF_8);
                         os.write(input, 0, input.length);
                     } catch (Exception e) {
                         Log.d(logtag, "Exception in outstream: " + e);
@@ -228,10 +236,11 @@ public class NetClient {
                 response_code = conn.getResponseCode();
                 Log.d(logtag, "Response: " + response_code);
 
-                if (200 <= response_code && response_code <= 399) {
+                if (response_code >= 200 && response_code <= 399) {
+                    // OK response
                     r_buffer = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                 } else {
-                    // error code
+                    // Error response code
                     r_buffer = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "UTF-8"));
                 }
                 while ((data = r_buffer.readLine()) != null) {
@@ -259,7 +268,7 @@ public class NetClient {
     }
 
     private static void handleRequestAnswer(ArrayList values) {
-        // Called from NetClient class when http request finishes
+        // Called from NetClient class when request finishes
         // TODO: use custom Object as with Credentials might be a lot nicer
         String clip_text = "";
         String error_text = "";
@@ -281,7 +290,7 @@ public class NetClient {
                 " Token :" + rsp_token +  " Resp Code: " + rsp_code + " Msg: " + rsp_msg);
 
         try {
-            // Parse JSON to get clip test if available else parse errors
+            // Parse JSON to get clip text if available else parse errors
             JSONObject jObject = new JSONObject(rsp_msg);
             rsp_msg = jObject.getString("text");
         } catch(Exception e1) {

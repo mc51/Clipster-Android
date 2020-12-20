@@ -2,13 +2,9 @@ package com.data_dive.com.clipster;
 
 import android.util.Base64;
 import android.util.Log;
-
-import com.amdelamar.jhash.Hash;
-import com.amdelamar.jhash.algorithms.Type;
-
 import com.macasaet.fernet.Key;
-import java.nio.charset.StandardCharsets;
 
+import java.nio.charset.StandardCharsets;
 
 /**
  *  Define credentials object to pass around functions and activities
@@ -18,60 +14,52 @@ import java.nio.charset.StandardCharsets;
 public final class Credentials {
     private static String logtag = "Credentials";
 
-    private static final Integer CRYPT_ITERATIONS = 100000;
-    private static final Integer CRYPT_HASH_LENGTH = 32;
     public Key encryption_key;
 
     public final String user;
     public final String pw;
+    public final String login_pw_hash;
+    public final String msg_pw_hash;
     public final String token_b64;
     public final String server;
     public final boolean ignore_cert;
 
+    public Credentials(String username, String password, String login_hash, String msg_hash, String server, boolean ignore_cert) {
+        /**
+         * Constructor when credentials already saved
+         */
+        this.user = username;
+        this.pw = password;
 
-    public Credentials(String user, String pw, String server, boolean ignore_cert) {
-        this.user = user;
-        this.pw = pw;
+        if(!pw.isEmpty()) {
+            this.login_pw_hash = Utils.stringToHash(user, pw, Utils.CRYPT_ITERS_LOGIN_HASH);
+            this.msg_pw_hash = Utils.stringToHash(user, pw, Utils.CRYPT_ITERS_MSG_HASH);
+        } else {
+            this.login_pw_hash = login_hash;
+            this.msg_pw_hash = msg_hash;
+        }
+
         this.server = server;
         this.ignore_cert = ignore_cert;
 
+        this.encryption_key = new Key(this.msg_pw_hash);
+        this.token_b64 = createAuthToken(this.user, this.login_pw_hash);
+        Log.d(logtag, "Called Constructor with:\n" + this.user + " " + this.pw + " " +  this.login_pw_hash + " "
+                + this.msg_pw_hash + " " + this.server + " " + token_b64 + " " + this.ignore_cert);
+    }
+
+    private String createAuthToken(String user, String pw) {
+        /**
+         *  Create b64 encoded String Token for Basic Auth to use for API requests
+         */
         String token = user + ":" + pw;
         try {
-            byte[] token_byte = token.getBytes("UTF-8");
+            byte[] token_byte = token.getBytes(StandardCharsets.UTF_8);
             token = Base64.encodeToString(token_byte, Base64.NO_WRAP);
         } catch (Exception UnsupportedEncodingException) {
             Log.e(logtag, "UnsupportedEncodingException");
             token = null;
         }
-        this.token_b64 = token;
-        Log.d(logtag, "called constructor, param: " + user + " " + pw + " " + " " + server
-                + " " + token + " " + ignore_cert);
-        createKey();
-    }
-    public void createKey() {
-        /** Create a PB2KDF hash key derived from the password and a salt
-         *  Use in Fernet for encrypting and decrypting
-         */
-        String hash = "";
-        String salt_string = "clipster_"+user+"_"+pw;
-        try {
-            byte[] salt = salt_string.getBytes(StandardCharsets.UTF_8);
-            String h = Hash.password(pw.toCharArray())
-                    .algorithm(Type.PBKDF2_SHA512)
-                    .salt(salt)
-                    .hashLength(CRYPT_HASH_LENGTH)
-                    .factor(CRYPT_ITERATIONS)
-                    .create();
-            hash = h.split(":")[6]; // jhash returns 7 concatenated strings, last one is hash
-            Log.d(logtag, "JHash output: " + h);
-        } catch (Exception e) {
-            Log.e(logtag, "Error creating Hash for Key: " + e);
-        }
-
-        // jHash uses b64 standard i.e. not urlsafe encoding "/" "+" -> "_" "-"
-        hash = hash.replace("/","_").replace("+", "-");
-        Log.d(logtag, "Hash : " + hash);
-        this.encryption_key = new Key(hash);
-        Log.d(logtag, "Created Key: " + this.encryption_key);
+        return token;
     }
 }

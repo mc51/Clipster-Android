@@ -16,7 +16,6 @@ import android.widget.TextView;
 
 public class ReadyActivity extends AppCompatActivity {
 
-    public final static  String APP_NAME = "Clipster";
     public final String logtag = this.getClass().getSimpleName();
     private static final int BUTTON_DELAY = 3000;
     TextView get_clip, set_clip, edit_creds, server;

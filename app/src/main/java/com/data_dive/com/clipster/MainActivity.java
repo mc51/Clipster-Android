@@ -17,9 +17,8 @@ import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
-    public final static String APP_NAME = "Clipster";
     private final static String logtag = "MainActivity";
-    private final static int BUTTON_DELAY = 3000;
+    private final static int BUTTON_DELAY = 2000;
 
     private String SERVER_URI;
     EditText password, user, server;
@@ -59,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
         checkForCreds();
     }
 
-    private View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
+    private  final View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
         public void onDebouncedClick(View v) {
             // Handle Clicks but debounced
             String action_tag = v.getTag().toString();
@@ -125,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.d(logtag, "server uri VALID: " + srv);
             Log.d(logtag, "Disable ssl certificate check: " + ignore);
-            Credentials creds = new Credentials(usr, pw, srv, ignore);
+            Credentials creds = new Credentials(usr, pw, "", "", srv, ignore);
             NetClient client = new NetClient(this, creds);
 
             if (action.equals("login")) {
@@ -139,6 +138,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String formatURIProtocol(String server) {
+
+        return server;
+        /**
         // Make sure we always use https:// and have no trailing slashes in URI
         server = server.replaceFirst("/*$", "");
         try {
@@ -154,10 +156,12 @@ public class MainActivity extends AppCompatActivity {
             Log.e(logtag, e.toString());
             return server;
         }
+         */
     }
 
     private boolean validateServerURI(String server) {
         // Basic validity check for the server address
+        if(server.contains("https://localhost")) { return true; }
         return android.util.Patterns.WEB_URL.matcher(server).matches();
     }
 }

@@ -1,9 +1,11 @@
 package com.data_dive.com.clipster;
 
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -46,13 +48,16 @@ public class NetClient {
     private static Credentials credentials;
     private static String SERVER_URI = "";
     private static String clip_clear = "";
+    private static String device_name;
 
     protected NetClient(Context context) {
         // Default constructor - we already have saved working credentials
         Log.d(logtag, "Default constructor. Getting creds.");
         credentials = Utils.getCreds(context);
         SERVER_URI = credentials.server;
-        Log.d(logtag, "Default constructor, SERVER: " + SERVER_URI);
+        device_name = getDeviceName(context);
+
+        Log.d(logtag, "Default constructor.\nSERVER: " + SERVER_URI + "\nDevice Name: " + device_name);
         if(credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
@@ -65,12 +70,38 @@ public class NetClient {
         // Constructor before we have saved credentials
         credentials = creds;
         SERVER_URI = credentials.server;
+        device_name = getDeviceName(context);
+
         if(credentials.ignore_cert) {
             disableSSLCertChecks();
         } else {
             enableSSLCertChecks();
         }
         mContext = context;
+    }
+
+    private String getDeviceName(Context context) {
+        /**
+         * Try to get the user defined device name
+         * Unfortunately there is no definite way: we try the most common
+         */
+        String name;
+        try {
+            name = Settings.Secure.getString(context.getContentResolver(), "bluetooth_name");
+            if(name == null) {
+                name = Settings.System.getString(context.getContentResolver(), "bluetooth_name");
+            }
+            if(name == null) {
+                name = Settings.Global.getString(context.getContentResolver(), Settings.Global.DEVICE_NAME);
+            }
+            if (name == null) {
+                name = "android";
+            }
+        } catch(Exception e) {
+            Log.e(logtag,"Couldn't get device name: " +  e.toString());
+            name = "android";
+        }
+        return name;
     }
 
     protected void Login() {
@@ -113,6 +144,7 @@ public class NetClient {
         String clip_encrypted = Utils.encryptText(mContext, clip);
         try {
             jsonPayload.put("text", clip_encrypted);
+            jsonPayload.put("device", device_name);
             payload = jsonPayload.toString();
             Log.d(logtag, "Parsed text to json: " + payload);
         }  catch(JSONException e) {

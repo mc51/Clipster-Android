@@ -2,7 +2,7 @@
     <string name="app_name">Clipster</string>
     <string name="login">Login</string>
     <string name="register">Register</string>
-    <string name="default_host">https://clipster.cc:9999</string>
+    <string name="default_host">https://clipster.cc</string>
     <string name="ignore_cert_radio">Disable SSL certificate check (only use with own server)</string>
     <string name="toggle_get_keyword">clipster</string>
     <string name="get_clip">Get Clipboard</string>

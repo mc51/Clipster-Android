@@ -3,8 +3,10 @@ package com.data_dive.com.clipster;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.amdelamar.jhash.Hash;
@@ -176,4 +178,5 @@ public class Utils {
         Log.d(logtag, "CRYPTO: " + cleartext);
         return cleartext;
     }
+
 }

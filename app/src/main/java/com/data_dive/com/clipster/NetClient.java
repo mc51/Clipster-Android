@@ -241,7 +241,7 @@ public class NetClient {
 
             try {
                 URL url = new URL(request_uri);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
                 conn.setConnectTimeout(TIMEOUT_CONN);
                 conn.setRequestProperty("Content-type", "application/json; utf-8");
                 conn.setRequestProperty("Accept", "application/json");

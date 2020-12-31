@@ -24,12 +24,13 @@ On the first run, register a new account. The (hashed) credentials are saved on 
 To share a text with your other devices, long-press and share it to `Clipster` or copy it to the clipboard and `Share Clip` in the app.    
 To get a text that was shared from one of your devices, select `Get last Clip` or `Get all Clips` in the app.  
 
-## Planned features
+## Roadmap
 
-- ~~Encrypt clipboard locally and only transmit encrypted data to server~~
-- ~~Add clipboard history~~
-- F-Store version
-- Google Play Store version
+- [x] Encrypt / Decrypt clipboard locally and only transmit encrypted data to server
+- [x] Add clipboard history: share multiple Clips
+- [ ] F-Store release
+- [ ] Support image sharing
+- [ ] Google Play Store release
   
 ## Contributions
 

@@ -108,7 +108,7 @@ public class Utils {
         ClipData clip = ClipData.newPlainText("Clipster", clip_text);
         cb.setPrimaryClip(clip);
         // Show Preview
-        Toast.makeText(context, context.getString(R.string.app_name) + " - shared Clip:\n"
+        Toast.makeText(context, context.getString(R.string.app_name) + " - set Clipboard to:\n"
                 + clip_text_show, Toast.LENGTH_LONG).show();
     }
 
@@ -185,6 +185,34 @@ public class Utils {
         }
         Log.d(logtag, "CRYPTO: " + cleartext);
         return cleartext;
+    }
+
+    public static boolean validateServerURI(String server_uri) {
+        /**
+         *  Basic validity check for the server address
+         */
+        if(server_uri.startsWith("https://localhost")) { return true; }
+        return android.util.Patterns.WEB_URL.matcher(server_uri).matches();
+    }
+
+    public static String formatURIProtocol(String server_uri) {
+        /**
+         *  Make sure we always use https:// and have no trailing slashes in URI
+         */
+        server_uri = server_uri.replaceFirst("/*$", "");
+        try {
+            if (server_uri.substring(0, 7).toLowerCase().startsWith("http://")) {
+                Log.d(logtag, "server contains http:// replacing with https://");
+                server_uri = server_uri.replace("http://", "https://");
+            } else if (!server_uri.substring(0, 8).toLowerCase().startsWith("https://")) {
+                Log.w(logtag, "No protocol provided, adding https://");
+                server_uri = "https://" + server_uri;
+            }
+            return server_uri;
+        } catch (Exception e) {
+            Log.e(logtag, e.toString());
+            return server_uri;
+        }
     }
 
 }

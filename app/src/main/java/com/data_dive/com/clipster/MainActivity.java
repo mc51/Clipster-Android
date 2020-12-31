@@ -35,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Utils.clearCreds(this); // For debugging
         Log.d(logtag, "Oncreate");
         super.onCreate(savedInstanceState);
 
@@ -111,12 +110,12 @@ public class MainActivity extends AppCompatActivity {
         if (srv.isEmpty()) {
             srv = SERVER_URI;
         }
-        srv = formatURIProtocol(srv);
+        srv = Utils.formatURIProtocol(srv);
 
         if (usr.isEmpty() || pw.isEmpty()) {
             Toast.makeText(this, getString(R.string.app_name) +
                     " - Please enter an username and password", Toast.LENGTH_LONG).show();
-        } else if (!validateServerURI(srv)) {
+        } else if (!Utils.validateServerURI(srv)) {
             Log.e(logtag, "server uri INVALID: " + srv);
             Toast.makeText(this, getString(R.string.app_name) +
                             " - Invalid server address.\nFormat should be: https://clipster.cc:9999",
@@ -135,33 +134,5 @@ public class MainActivity extends AppCompatActivity {
                 client.Register();
             }
         }
-    }
-
-    private String formatURIProtocol(String server) {
-
-        return server;
-        /**
-        // Make sure we always use https:// and have no trailing slashes in URI
-        server = server.replaceFirst("/*$", "");
-        try {
-            if (server.substring(0, 7).toLowerCase().contains("http://")) {
-                Log.d(logtag, "server contains http:// replacing with https://");
-                server = server.replace("http://", "https://");
-            } else if (!server.substring(0, 8).toLowerCase().contains("https://")) {
-                Log.w(logtag, "No protocol provided, adding https://");
-                server = "https://" + server;
-            }
-            return server;
-        } catch (Exception e) {
-            Log.e(logtag, e.toString());
-            return server;
-        }
-         */
-    }
-
-    private boolean validateServerURI(String server) {
-        // Basic validity check for the server address
-        if(server.startsWith("https://localhost")) { return true; }
-        return android.util.Patterns.WEB_URL.matcher(server).matches();
     }
 }

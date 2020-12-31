@@ -355,7 +355,7 @@ public class NetClient {
             } else if(rsp_req_type.equals("set_clip")) {
                 String clip = getLastClipTextFromJSON(message_ok);
                 Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clip);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Set clip to:\n" + clip,
+                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - shared Clip:\n" + clip,
                         Toast.LENGTH_LONG).show();
             }
         } else {

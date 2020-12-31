@@ -371,8 +371,13 @@ public class NetClient {
         /**
          * Get the last Clip as a cleartext string from the ArrayList containing all encrypted clips
          */
-        String clip_encrypted = message.get(message.size() - 1);
-        String clip_clear = Utils.decryptText(mContext, clip_encrypted);
+        String clip_clear;
+        if(message.size() > 0) {
+            String clip_encrypted = message.get(message.size() - 1);
+            clip_clear = Utils.decryptText(mContext, clip_encrypted);
+        } else {
+            clip_clear = mContext.getString(R.string.empty_clip_list);
+        }
         return clip_clear;
     }
 
@@ -417,16 +422,19 @@ public class NetClient {
         String res_text = null;
         try {
             JSONObject jRes = new JSONObject(res);
-            res_text = (jRes.getString("text"));
+            res_text = jRes.getString("detail");
         } catch(Exception JSONException) {
-            Log.d(logtag, "Could not parse as JSONObject: " + res.toString());
+            res_text = res;
+            Log.d(logtag, "Could not parse as JSONObject: " + res_text);
         }
-        Log.d(logtag, "OK Parsing error JSON response: " + res_text.toString());
+        Log.d(logtag, "OK Parsing error JSON response: " + res_text);
         return res_text;
     }
 
     private static void startReadyActivity(Context context) {
-        // Login successful switch to Ready Screen
+        /**
+         *  After successful login  switch to Ready Screen
+         */
         Log.d(logtag, "startReadyActivity");
         try {
             Intent i = new Intent(context, ReadyActivity.class);
@@ -440,7 +448,6 @@ public class NetClient {
         /**
          * Start Activity to show all decrypted Clips
          */
-
         Log.d(logtag, "startListClipsActivity");
         String[] clips_array = new String[clips.size()];
 

@@ -10,7 +10,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class ListClipsActivity extends AppCompatActivity {
 
@@ -19,19 +18,27 @@ public class ListClipsActivity extends AppCompatActivity {
     private static String selected_clip;
     private static final int BUTTON_DELAY = 2000;
     TextView copy_to_clipboard, back;
-    Context mContext;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_list_clips);
 
+        ArrayAdapter adapter = null;
         // Buttons
         copy_to_clipboard = findViewById(R.id.CopyToClipboard);
         back = findViewById(R.id.Back);
 
         if (getIntent().getExtras() != null) {
             clips = getIntent().getStringArrayExtra("clips");
+            if(clips.length > 0) {
+                adapter = new ArrayAdapter<String>(this, R.layout.list_clips_items,
+                        R.id.clip_items_textview, clips);
+            } else {
+                // No Clips yet
+                adapter = new ArrayAdapter<String>(this, R.layout.list_clips_items,
+                        R.id.clip_items_textview, new String[]{getString(R.string.empty_clip_list)});
+            }
         }
 
         copy_to_clipboard.setOnClickListener(btnListener);
@@ -41,8 +48,6 @@ public class ListClipsActivity extends AppCompatActivity {
 
         // Initialize ListView for showing all Clips
         final ListView listview = findViewById(R.id.ListOfClipsView);
-        ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.list_clips_items,
-                R.id.clip_items_textview, clips);
         listview.setAdapter(adapter);
 
         listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {

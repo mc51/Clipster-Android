@@ -103,13 +103,13 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:layout_marginBottom="400dp">
-
+        android:gravity="center_horizontal"
+        android:layout_marginTop="60dp">
         <ImageView
-            android:layout_width="300dp"
-            android:layout_height="100dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/clipster_250_banner"
             android:contentDescription="Clipster header"
-            android:src="@drawable/clipster" />
+            />
     </LinearLayout>
 </RelativeLayout>

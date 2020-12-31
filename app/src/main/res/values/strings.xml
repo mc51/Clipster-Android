@@ -19,4 +19,5 @@
     <string name="msg_warn_clicking_too_fast">Slow down! Your clicking too fast</string>
     <string name="copy_to_clipboard">Copy to Clipboard</string>
     <string name="back">Back</string>
+    <string name="empty_clip_list">There are no shared Clips yet</string>
 </resources>

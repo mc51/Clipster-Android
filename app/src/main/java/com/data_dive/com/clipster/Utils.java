@@ -108,7 +108,7 @@ public class Utils {
         ClipData clip = ClipData.newPlainText("Clipster", clip_text);
         cb.setPrimaryClip(clip);
         // Show Preview
-        Toast.makeText(context, context.getString(R.string.app_name) + " - Clipboard set to:\n"
+        Toast.makeText(context, context.getString(R.string.app_name) + " - shared Clip:\n"
                 + clip_text_show, Toast.LENGTH_LONG).show();
     }
 

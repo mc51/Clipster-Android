@@ -10,14 +10,15 @@ android:background="@drawable/grdnt">
         android:orientation="vertical"
         android:paddingLeft="10dp"
         android:paddingRight="10dp"
-        android:paddingTop="20dp"
+        android:paddingTop="60dp"
         android:paddingBottom="20dp"
         android:gravity="center_horizontal">
             <ImageView
-                android:layout_width="300dp"
-                android:layout_height="100dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingBottom="20dp"
                 android:contentDescription="Clipster header"
-                android:src="@drawable/clipster" />
+                android:src="@drawable/clipster_250_banner" />
             <ListView
                 android:id="@+id/ListOfClipsView"
                 android:layout_width="match_parent"

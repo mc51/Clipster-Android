@@ -25,8 +25,8 @@ To get a text that was shared from one of your devices, select `Get Clip`. Then,
 
 ## Planned features
 
-- Encrypt clipboard locally and only transmit encrypted data to server
-- Add clipboard history
+- ~~Encrypt clipboard locally and only transmit encrypted data to server~~
+- ~~Add clipboard history~~
 - F-Store version
 - Google Play Store version
   

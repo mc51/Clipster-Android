@@ -1,0 +1,71 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:background="@drawable/grdnt">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="20dp"
+        android:gravity="center_horizontal">
+            <ImageView
+                android:layout_width="300dp"
+                android:layout_height="100dp"
+                android:contentDescription="Clipster header"
+                android:src="@drawable/clipster" />
+            <ListView
+                android:id="@+id/ListOfClipsView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:divider="#000000"
+                android:dividerHeight="1dp"
+                android:listSelector="#435F5E5E"
+                android:layout_marginBottom="20dp"
+                android:layout_weight="1"
+                >
+            </ListView>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingLeft="80dp"
+            android:paddingRight="80dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/CopyToClipboard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                android:letterSpacing="0.2"
+                android:text="@string/copy_to_clipboard"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp"
+                android:padding="16dp"
+                android:layout_weight="0"
+                android:gravity="center"
+                />
+            <TextView
+                android:id="@+id/Back"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#000000"
+                android:letterSpacing="0.2"
+                android:text="@string/back"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="0dp"
+                android:gravity="center"
+                android:padding="16dp"
+                android:layout_weight="0"
+                />
+        </LinearLayout>
+    </LinearLayout>
+</RelativeLayout>

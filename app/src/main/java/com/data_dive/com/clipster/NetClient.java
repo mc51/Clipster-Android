@@ -1,7 +1,6 @@
 package com.data_dive.com.clipster;
 
 import android.annotation.SuppressLint;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -9,6 +8,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -128,10 +128,16 @@ public class NetClient {
         req.execute(request_uri, credentials.token_b64, "register", payload);
     }
 
-    protected void GetClipFromServer() {
+    protected void GetLastClipFromServer() {
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_CLIP;
-        req.execute(request_uri, credentials.token_b64, "get_clip",  "");
+        req.execute(request_uri, credentials.token_b64, "get_last_clip",  "");
+    }
+
+    protected void GetAllClipsFromServer() {
+        ClientRequest req = new ClientRequest(mContext);
+        String request_uri = SERVER_URI + URI_CLIP;
+        req.execute(request_uri, credentials.token_b64, "get_all_clips",  "");
     }
 
     protected void SetClipOnServer(String clip) {
@@ -235,7 +241,7 @@ public class NetClient {
 
             try {
                 URL url = new URL(request_uri);
-                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(TIMEOUT_CONN);
                 conn.setRequestProperty("Content-type", "application/json; utf-8");
                 conn.setRequestProperty("Accept", "application/json");
@@ -302,13 +308,14 @@ public class NetClient {
     private static void handleRequestAnswer(ArrayList values) {
         // Called from NetClient class when request finishes
         // TODO: use custom Object as with Credentials might be a lot nicer
-        String clip_text = "";
-        String error_text = "";
         String rsp_server_uri = "";
         String rsp_token = "";
         String rsp_req_type = "";
         String rsp_code = "";
         String rsp_msg = "";
+        ArrayList<String> message_ok = new ArrayList<String>();
+        String message_error = null;
+
         try {
             rsp_server_uri = values.get(0).toString();
             rsp_token = values.get(1).toString();
@@ -321,22 +328,10 @@ public class NetClient {
         Log.d(logtag, "Server: " + rsp_server_uri + " Req Type: " + rsp_req_type +
                 " Token :" + rsp_token +  " Resp Code: " + rsp_code + " Msg: " + rsp_msg);
 
-        try {
-            // Parse JSON to get clip text if available else parse errors
-            JSONObject jObject = new JSONObject(rsp_msg);
-            rsp_msg = jObject.getString("text");
-        } catch(Exception e1) {
-            try {
-                JSONObject jObject = new JSONObject(rsp_msg);
-                rsp_msg = jObject.getString("detail");
-            } catch(Exception e2) {
-                Log.e(logtag, "Could not parse to json: " + rsp_msg);
-            }
-        }
-        Log.d(logtag, "Clipboard content: " + clip_text + "\nError: " + error_text);
-
         // Handle http response codes
         if (rsp_code.equals("200") || rsp_code.equals("201")) {
+            // OK Reponses
+            message_ok = parseJSONOKResponse(rsp_msg);
             if(rsp_req_type.equals("login")) {
                 Log.d(logtag, "Login successful - saving Used credentials to file");
                 Utils.saveCreds(mContext, credentials);
@@ -349,23 +344,85 @@ public class NetClient {
                 Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Registration successful!",
                         Toast.LENGTH_LONG).show();
                 startReadyActivity(mContext);
-            } else if(rsp_req_type.equals("get_clip")) {
-                Log.d(logtag, "Get_clip successful: " + rsp_msg);
-                String clip_clear  = Utils.decryptText(mContext, rsp_msg);
-                Log.d(logtag, "Get_clip successful: " + clip_clear);
-                Utils.setClipboard(mContext, clip_clear);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Got new clip:\n" + clip_clear,
-                        Toast.LENGTH_LONG).show();
+            } else if(rsp_req_type.equals("get_last_clip")) {
+                String clip = getLastClipTextFromJSON(message_ok);
+                Log.d(logtag, "Get_last_clip successful: " + clip);
+                Utils.setClipboard(mContext, clip);
+            } else if(rsp_req_type.equals("get_all_clips")) {
+                ArrayList<String> clips = getAllClipsTextFromJSON(message_ok);
+                Log.d(logtag, "Get_all_clips successful: " + clips.toString());
+                startListClipsActivity(mContext, clips);
             } else if(rsp_req_type.equals("set_clip")) {
-                Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clip_clear);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Set clip to:\n" + clip_clear,
+                String clip = getLastClipTextFromJSON(message_ok);
+                Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clip);
+                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Set clip to:\n" + clip,
                         Toast.LENGTH_LONG).show();
             }
         } else {
+            // ERROR Responses
+            message_error = parseJSONErrorResponse(rsp_msg);
             Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - " + rsp_req_type + " failed with code: " +
-                            rsp_code + "\n" + "Message: " + rsp_msg,
+                            rsp_code + "\n" + "Message: " + message_error,
                     Toast.LENGTH_LONG).show();
         }
+    }
+
+    private static String getLastClipTextFromJSON(ArrayList<String> message) {
+        /**
+         * Get the last Clip as a cleartext string from the ArrayList containing all encrypted clips
+         */
+        String clip_encrypted = message.get(message.size() - 1);
+        String clip_clear = Utils.decryptText(mContext, clip_encrypted);
+        return clip_clear;
+    }
+
+    private static ArrayList<String> getAllClipsTextFromJSON(ArrayList<String> message) {
+        /**
+         * Get all Clips as a cleartext ArrayList from the ArrayList containing all encrypted Clips
+         */
+        ArrayList<String> clips_clear = new ArrayList<String>();
+        for (int i=0; i < message.size(); i++) {
+            clips_clear.add(Utils.decryptText(mContext, message.get(i)));
+        }
+        return clips_clear;
+    }
+
+    private static ArrayList<String> parseJSONOKResponse(String res) {
+        /**
+         * Parse ok HTTP JSON responses and return ArrayList of Strings
+         */
+        ArrayList<String> res_text = new ArrayList<String>();
+        try {
+            JSONObject jRes = new JSONObject(res);
+            res_text.add(jRes.getString("text"));
+        } catch(Exception JSONException) {
+            Log.d(logtag, "Could not parse as JSONObject: " + res.toString());
+            try {
+                JSONArray jclips = new JSONArray(res);
+                for (int i=0; i < jclips.length(); i++) {
+                    res_text.add(jclips.getJSONObject(i).getString("text"));
+                }
+            } catch (JSONException e) {
+                Log.e(logtag, "Could not parse as JSONArray: " + res.toString());
+            }
+        }
+        Log.d(logtag, "OK Parsing as JSONArray: " + res_text.toString());
+        return res_text;
+    }
+
+    private static String parseJSONErrorResponse(String res) {
+        /**
+         * Parse ok HTTP JSON responses and return ArrayList of Strings
+         */
+        String res_text = null;
+        try {
+            JSONObject jRes = new JSONObject(res);
+            res_text = (jRes.getString("text"));
+        } catch(Exception JSONException) {
+            Log.d(logtag, "Could not parse as JSONObject: " + res.toString());
+        }
+        Log.d(logtag, "OK Parsing error JSON response: " + res_text.toString());
+        return res_text;
     }
 
     private static void startReadyActivity(Context context) {
@@ -376,6 +433,28 @@ public class NetClient {
             mContext.startActivity(i);
         } catch (Exception e) {
             Log.e(logtag, "Exception calling: " + e);
+        }
+    }
+
+    private static void startListClipsActivity(Context context, ArrayList<String> clips) {
+        /**
+         * Start Activity to show all decrypted Clips
+         */
+
+        Log.d(logtag, "startListClipsActivity");
+        String[] clips_array = new String[clips.size()];
+
+        for(int i=0; i< clips.size(); i++) {
+            // ArrayList to String Array
+            clips_array[i] = clips.get(i);
+        }
+
+        try {
+            Intent i = new Intent(context, ListClipsActivity.class);
+            i.putExtra("clips", clips_array);
+            mContext.startActivity(i);
+        } catch (Exception e) {
+            Log.e(logtag, "Error starting Activity: " + e);
         }
     }
 }

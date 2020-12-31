@@ -66,7 +66,7 @@ public class ShareActivity extends AppCompatActivity {
     private void ClientGetClip() {
         // Send Request for getting clip
         NetClient client = new NetClient(this);
-        client.GetClipFromServer();
+        client.GetLastClipFromServer();
     }
 
 }

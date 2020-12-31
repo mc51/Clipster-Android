@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.provider.Settings;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.amdelamar.jhash.Hash;
 import com.amdelamar.jhash.algorithms.Type;
@@ -44,6 +45,8 @@ public class Utils {
     public static final Integer CRYPT_ITERS_LOGIN_HASH = 20000;
     public static final Integer CRYPT_ITERS_MSG_HASH = 10000;
     private static final Integer CRYPT_HASH_LENGTH = 32;
+
+    private static final Integer MAX_CLIP_SHOW_LEN = 120;
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file already
@@ -97,11 +100,16 @@ public class Utils {
     }
 
     public static void setClipboard(Context context, String clip_text) {
-        // Move text to clipboard
-        Log.d(logtag, "Storing text to clipboard");
+        // Move text to clipboard and display message
+        String clip_text_show = clip_text.substring(0, Math.min(clip_text.length(), MAX_CLIP_SHOW_LEN));
+        if (clip_text.length() > MAX_CLIP_SHOW_LEN) { clip_text_show = clip_text_show + " [...]"; }
+        Log.d(logtag, "Storing text to clipboard: " + clip_text);
         ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
         ClipData clip = ClipData.newPlainText("Clipster", clip_text);
         cb.setPrimaryClip(clip);
+        // Show Preview
+        Toast.makeText(context, context.getString(R.string.app_name) + " - Clipboard set to:\n"
+                + clip_text_show, Toast.LENGTH_LONG).show();
     }
 
     public static String checkClipboard(Context context) {

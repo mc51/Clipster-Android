@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
         checkForCreds();
     }
 
-    private  final View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
+    private final View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
         public void onDebouncedClick(View v) {
             // Handle Clicks but debounced
             String action_tag = v.getTag().toString();
@@ -161,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean validateServerURI(String server) {
         // Basic validity check for the server address
-        if(server.contains("https://localhost")) { return true; }
+        if(server.startsWith("https://localhost")) { return true; }
         return android.util.Patterns.WEB_URL.matcher(server).matches();
     }
 }

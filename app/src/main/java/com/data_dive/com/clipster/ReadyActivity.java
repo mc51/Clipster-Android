@@ -18,7 +18,7 @@ public class ReadyActivity extends AppCompatActivity {
 
     public final String logtag = this.getClass().getSimpleName();
     private static final int BUTTON_DELAY = 3000;
-    TextView get_clip, set_clip, edit_creds, server;
+    TextView get_last_clip, get_all_clips, set_clip, edit_creds, server;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,12 +31,15 @@ public class ReadyActivity extends AppCompatActivity {
         server = findViewById(R.id.active_server);
         setActiveServerAddress();
 
-        get_clip = findViewById(R.id.get_clip);
+        get_last_clip = findViewById(R.id.get_last_clip);
+        get_all_clips = findViewById(R.id.get_all_clips);
         set_clip = findViewById(R.id.set_clip);
         edit_creds = findViewById(R.id.edit_creds);
 
-        get_clip.setOnClickListener(btnListener);
-        get_clip.setTag("get_clip");
+        get_last_clip.setOnClickListener(btnListener);
+        get_last_clip.setTag("get_last_clip");
+        get_all_clips.setOnClickListener(btnListener);
+        get_all_clips.setTag("get_all_clips");
         set_clip.setOnClickListener(btnListener);
         set_clip.setTag("set_clip");
         edit_creds.setOnClickListener(btnListener);
@@ -65,10 +68,14 @@ public class ReadyActivity extends AppCompatActivity {
     }
 
     private void prepareClipRequest(String action) {
-        if(action.equals("get_clip")) {
-            Log.d(logtag,"Calling GetClip function");
+        if(action.equals("get_last_clip")) {
+            Log.d(logtag,"Calling GetLastClip function");
             NetClient client = new NetClient(this);
-            client.GetClipFromServer();
+            client.GetLastClipFromServer();
+        } else if(action.equals("get_all_clips")) {
+            Log.d(logtag, "Calling GetAllClips function");
+            NetClient client = new NetClient(this);
+            client.GetAllClipsFromServer();
         } else if(action.equals("set_clip")) {
             Log.d(logtag, "Calling SetClip function");
             NetClient client = new NetClient(this);

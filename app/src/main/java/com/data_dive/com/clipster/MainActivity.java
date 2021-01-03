@@ -115,6 +115,10 @@ public class MainActivity extends AppCompatActivity {
         if (usr.isEmpty() || pw.isEmpty()) {
             Toast.makeText(this, getString(R.string.app_name) +
                     " - Please enter an username and password", Toast.LENGTH_LONG).show();
+        } else if (pw.length() < Utils.MIN_PW_LENGTH) {
+            Toast.makeText(this, getString(R.string.app_name) +
+                    " - Your password must be at least " + Utils.MIN_PW_LENGTH.toString() + " characters long",
+                    Toast.LENGTH_LONG).show();
         } else if (!Utils.validateServerURI(srv)) {
             Log.e(logtag, "server uri INVALID: " + srv);
             Toast.makeText(this, getString(R.string.app_name) +

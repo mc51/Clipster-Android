@@ -46,7 +46,9 @@ public class Utils {
     public static final Integer CRYPT_ITERS_MSG_HASH = 10000;
     private static final Integer CRYPT_HASH_LENGTH = 32;
 
-    private static final Integer MAX_CLIP_SHOW_LEN = 120;
+    public static final Integer MAX_CLIP_SHOW_LEN = 120;
+    public static final Integer MIN_PW_LENGTH = 8;
+
 
     public static boolean areCredsSaved(Context context) {
         // Check if creds are saved to file already

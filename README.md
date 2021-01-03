@@ -11,8 +11,8 @@ This is the Android Client.
 There also is a [Clipster-Desktop](https://github.com/mc51/Clipster-Desktop) client for Linux, MacOS and Windows.  
 You can run your own [Clipster-Server](https://github.com/mc51/Clipster-Server) on a Linux machine.  
 Or you can use the public server at [https://clipster.cc](https://clipster.cc).  
-
-  ![Clipster demo](demo_long.gif)  
+  
+![Clipster demo](resources/demo_01.gif)  
 
 ## Setup
 

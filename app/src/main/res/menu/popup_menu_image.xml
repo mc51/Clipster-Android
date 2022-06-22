@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/copy_to_clipboard"
+        android:title="@string/menu_copy_to_clipboard" />
+    <item
+        android:id="@+id/save_to_file"
+        android:title="@string/menu_save_to_file" />
+    <item
+        android:id="@+id/share"
+        android:title="@string/menu_share" />
+</menu>

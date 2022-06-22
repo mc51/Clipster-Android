@@ -20,4 +20,7 @@
     <string name="copy_to_clipboard">Copy to Clipboard</string>
     <string name="back">Back</string>
     <string name="empty_clip_list">There are no shared Clips yet</string>
+    <string name="menu_copy_to_clipboard">Copy to Clipboard</string>
+    <string name="menu_save_to_file">Save to file</string>
+    <string name="menu_share">Share</string>
 </resources>

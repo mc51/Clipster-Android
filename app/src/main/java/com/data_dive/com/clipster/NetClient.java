@@ -15,7 +15,6 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -313,8 +312,8 @@ public class NetClient {
         String rsp_req_type = "";
         String rsp_code = "";
         String rsp_msg = "";
-        ArrayList<String> message_ok = new ArrayList<String>();
         String message_error = null;
+        JSONArray clips = null;
 
         try {
             rsp_server_uri = values.get(0).toString();
@@ -331,7 +330,7 @@ public class NetClient {
         // Handle http response codes
         if (rsp_code.equals("200") || rsp_code.equals("201")) {
             // OK Reponses
-            message_ok = parseJSONOKResponse(rsp_msg);
+            clips = parseJSONOKResponse(rsp_msg);
             if(rsp_req_type.equals("login")) {
                 Log.d(logtag, "Login successful - saving Used credentials to file");
                 Utils.saveCreds(mContext, credentials);
@@ -345,18 +344,21 @@ public class NetClient {
                         Toast.LENGTH_LONG).show();
                 startReadyActivity(mContext);
             } else if(rsp_req_type.equals("get_last_clip")) {
-                String clip = getLastClipTextFromJSON(message_ok);
-                Log.d(logtag, "Get_last_clip successful: " + clip);
-                Utils.setClipboard(mContext, clip);
+                try {
+                    Log.d(logtag, "Get_last_clip successful: " + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
+                    Utils.setClipboard(mContext, clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
+                } catch (JSONException e) {
+                }
             } else if(rsp_req_type.equals("get_all_clips")) {
-                ArrayList<String> clips = getAllClipsTextFromJSON(message_ok);
-                Log.d(logtag, "Get_all_clips successful: " + clips.toString());
+                Log.d(logtag, "Get_all_clips successful");
                 startListClipsActivity(mContext, clips);
             } else if(rsp_req_type.equals("set_clip")) {
-                String clip = getLastClipTextFromJSON(message_ok);
-                Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clip);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - shared Clip:\n" + clip,
-                        Toast.LENGTH_LONG).show();
+                try {
+                    Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
+                    Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - shared Clip:\n" + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
+                            Toast.LENGTH_LONG).show();
+                } catch (JSONException e) {
+                }
             }
         } else {
             // ERROR Responses
@@ -367,52 +369,20 @@ public class NetClient {
         }
     }
 
-    private static String getLastClipTextFromJSON(ArrayList<String> message) {
+    private static JSONArray parseJSONOKResponse(String res) {
         /**
-         * Get the last Clip as a cleartext string from the ArrayList containing all encrypted clips
+         * Parse OK HTTP Response from JSON to ArrayList<Clip>
          */
-        String clip_clear;
-        if(message.size() > 0) {
-            String clip_encrypted = message.get(message.size() - 1);
-            clip_clear = Utils.decryptText(mContext, clip_encrypted);
-        } else {
-            clip_clear = mContext.getString(R.string.empty_clip_list);
-        }
-        return clip_clear;
-    }
-
-    private static ArrayList<String> getAllClipsTextFromJSON(ArrayList<String> message) {
-        /**
-         * Get all Clips as a cleartext ArrayList from the ArrayList containing all encrypted Clips
-         */
-        ArrayList<String> clips_clear = new ArrayList<String>();
-        for (int i=0; i < message.size(); i++) {
-            clips_clear.add(Utils.decryptText(mContext, message.get(i)));
-        }
-        return clips_clear;
-    }
-
-    private static ArrayList<String> parseJSONOKResponse(String res) {
-        /**
-         * Parse ok HTTP JSON responses and return ArrayList of Strings
-         */
-        ArrayList<String> res_text = new ArrayList<String>();
+        JSONArray clips = null;
         try {
-            JSONObject jRes = new JSONObject(res);
-            res_text.add(jRes.getString("text"));
-        } catch(Exception JSONException) {
-            Log.d(logtag, "Could not parse as JSONObject: " + res.toString());
-            try {
-                JSONArray jclips = new JSONArray(res);
-                for (int i=0; i < jclips.length(); i++) {
-                    res_text.add(jclips.getJSONObject(i).getString("text"));
-                }
-            } catch (JSONException e) {
-                Log.e(logtag, "Could not parse as JSONArray: " + res.toString());
-            }
+            clips = new JSONArray(res);
+            clips = Utils.DecryptClips(mContext, clips);
+        } catch (JSONException e) {
+            Log.e(logtag, "Could not parse as JSONArray: " + res.toString());
         }
-        Log.d(logtag, "OK Parsing as JSONArray: " + res_text.toString());
-        return res_text;
+
+        Log.d(logtag, "OK Parsing as JSONArray: " + clips.toString());
+        return clips;
     }
 
     private static String parseJSONErrorResponse(String res) {
@@ -444,21 +414,14 @@ public class NetClient {
         }
     }
 
-    private static void startListClipsActivity(Context context, ArrayList<String> clips) {
+    private static void startListClipsActivity(Context context, JSONArray clips) {
         /**
          * Start Activity to show all decrypted Clips
          */
         Log.d(logtag, "startListClipsActivity");
-        String[] clips_array = new String[clips.size()];
-
-        for(int i=0; i< clips.size(); i++) {
-            // ArrayList to String Array
-            clips_array[i] = clips.get(i);
-        }
-
         try {
             Intent i = new Intent(context, ListClipsActivity.class);
-            i.putExtra("clips", clips_array);
+            i.putExtra("clips", clips.toString());
             mContext.startActivity(i);
         } catch (Exception e) {
             Log.e(logtag, "Error starting Activity: " + e);

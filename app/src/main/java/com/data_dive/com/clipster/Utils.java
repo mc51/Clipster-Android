@@ -6,7 +6,10 @@ import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.provider.Settings;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -18,9 +21,14 @@ import com.macasaet.fernet.Token;
 import com.macasaet.fernet.TokenExpiredException;
 import com.macasaet.fernet.TokenValidationException;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.TemporalAmount;
+import java.util.ArrayList;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
 
@@ -161,8 +169,8 @@ public class Utils {
         return token.serialise();
     }
 
-    public static String decryptText(Context context, String text) {
-        // Decrypt Text with Fernet using key
+    public static String decryptClip(Context context, String text) {
+        // Decrypt Text with Fernet using key and return it as string
         Credentials credentials = getCreds(context);
         Key key = credentials.encryption_key;
         String cleartext = "";
@@ -216,5 +224,61 @@ public class Utils {
             return server_uri;
         }
     }
+
+    public static Bitmap B64StringToImage(String imgString) {
+        // Decode base64 string containing image to Bitmap image and return
+        Bitmap decodedImage = null;
+        try {
+            byte[] imgBytes = Base64.decode(imgString, Base64.DEFAULT);
+            decodedImage = BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length);
+        } catch (Exception e) {
+            Log.e(logtag, "Error B64StringToImage:" + e);
+            // TODO: Return placeholder image if no valid image found
+        }
+        return decodedImage;
+    }
+
+    public static JSONArray DecryptClips(Context mContext, JSONArray clips) {
+        // DecryptClips from encrypted text to cleartext, add text_decrypted key to clips
+        String text;
+        JSONObject clip;
+
+        for(int i=0;i<=clips.length();i++) {
+            try {
+                clip = clips.getJSONObject(i);
+                text = clip.getString("text");
+                String text_decrypted = Utils.decryptClip(mContext, text);
+                clip.put("text_decrypted", text_decrypted);
+                clips.put(i, clip);
+                Log.d(logtag, "Processed:" + clips.getJSONObject(i).getString("text_decrypted"));
+            } catch(JSONException e) {
+            }
+        }
+        return clips;
+    }
+
+/*    public static  ArrayList<Bitmap> ProcessImages(Context mContext, JSONArray clips) {
+        // ProcessImages creates Bitmap Images from decrypted b64 representation of images
+        JSONObject clip;
+        String text_decrypted;
+        String format;
+        ArrayList<Bitmap> images;
+        Bitmap image;
+
+        for(int i=0;i<=clips.length();i++) {
+            try {
+                clip = clips.getJSONObject(i);
+                text_decrypted = clip.getString("text_decrypted");
+                format = clip.getString("format");
+                if(format=="img") {
+                    image = B64StringToImage(text_decrypted);
+                    images.add(image);
+                    Log.d(logtag, "Created image from text");
+                }
+            } catch(JSONException e) {
+            }
+        }
+        return images;
+    }*/
 
 }

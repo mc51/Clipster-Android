@@ -294,12 +294,15 @@ public class Utils {
     }
 
     public static void SaveBitmapToGallery(Context mContext, Bitmap image, String title, String description) {
+        // SaveBitmapToGallery and show Toast on success
         try {
             ContentResolver cr = mContext.getContentResolver();
             MediaStore.Images.Media.insertImage(cr, image, title, description);
         } catch(Exception e) {
+            Toast.makeText(mContext, "Error:\nCould not save Image to Gallery", Toast.LENGTH_LONG).show();
             Log.e(logtag, "Error: " + e);
         }
+        Toast.makeText(mContext, "Image saved to Gallery", Toast.LENGTH_LONG).show();
         Log.d(logtag, "Saved image to gallery: " + title + " " + description);
     }
 

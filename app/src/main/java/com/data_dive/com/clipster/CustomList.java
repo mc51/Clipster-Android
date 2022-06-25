@@ -22,7 +22,7 @@ public class CustomList extends ArrayAdapter<String>{
 
     public CustomList(Activity context, JSONArray clips, String[] entry_placeholders) {
 
-        super(context, R.layout.list_single, entry_placeholders);
+        super(context, R.layout.list_single_txt, entry_placeholders);
         Log.d(logtag, "CustomList constructor");
         this.context = context;
         this.entry_placeholders = entry_placeholders;
@@ -37,7 +37,7 @@ public class CustomList extends ArrayAdapter<String>{
             Bitmap image;
 
             LayoutInflater inflater = context.getLayoutInflater();
-            View rowView = inflater.inflate(R.layout.list_single, null, true);
+            View rowView = null;
 
             try {
                 text_decrypted = clips.getJSONObject(position).getString("text_decrypted");
@@ -47,10 +47,12 @@ public class CustomList extends ArrayAdapter<String>{
             }
 
             if (format.equals("img")) {
+                rowView = inflater.inflate(R.layout.list_single_img, null, true);
                 image = Utils.B64StringToImage(text_decrypted);
                 ImageView imageView = (ImageView) rowView.findViewById(R.id.img);
                 imageView.setImageBitmap(image);
-            } else {
+            } else if (format.equals("txt")) {
+                rowView = inflater.inflate(R.layout.list_single_txt, null, true);
                 TextView txtTitle = (TextView) rowView.findViewById(R.id.txt);
                 txtTitle.setText(text_decrypted);
             }

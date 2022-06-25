@@ -1,9 +1,18 @@
 package com.data_dive.com.clipster;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -16,15 +25,20 @@ import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+
 
 public class ListClipsActivity extends AppCompatActivity {
 
     public final String logtag = this.getClass().getSimpleName();
     private static String clip_text;
     private static String clip_format;
-    ListView list;
     private static final int BUTTON_DELAY = 2000;
+    private static final int WRITE_EXTERNAL_STORAGE_REQUEST = 123;
+    Bitmap image;
     TextView copy_to_clipboard, back;
+    ListView list;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,7 +46,7 @@ public class ListClipsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_list_clips);
 
         // Buttons
-        copy_to_clipboard = findViewById(R.id.CopyToClipboard);
+        // copy_to_clipboard = findViewById(R.id.CopyToClipboard);
         back = findViewById(R.id.Back);
 
         // Initialize ListView for showing all Clips
@@ -61,8 +75,8 @@ public class ListClipsActivity extends AppCompatActivity {
             }
         }
 
-        copy_to_clipboard.setOnClickListener(btnListener);
-        copy_to_clipboard.setTag("copy_to_clipboard");
+//        copy_to_clipboard.setOnClickListener(btnListener);
+//        copy_to_clipboard.setTag("copy_to_clipboard");
         back.setOnClickListener(btnListener);
         back.setTag("back");
 
@@ -87,45 +101,80 @@ public class ListClipsActivity extends AppCompatActivity {
     private void openPopupMenu(View view, String clip_text, String clip_format) {
         // Initializing the popup menu and giving the reference as current context
         PopupMenu popupMenu = new PopupMenu(this, view);
+
         if (clip_format.equals("img")) {
-            // Inflating popup menu from .xml file
             popupMenu.getMenuInflater().inflate(R.menu.popup_menu_image, popupMenu.getMenu());
         } else {
-            // Inflating popup menu from .xml file
             popupMenu.getMenuInflater().inflate(R.menu.popup_menu_text, popupMenu.getMenu());
         }
 
         popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem menuItem) {
-                if (clip_format.equals("img")) {
-                    Log.d(logtag, "Got Menu Item Image: " + menuItem.getTitle());
-                } else {
                     Log.d(logtag, "Got Menu Item Text: " + menuItem.getTitle());
                     Log.d(logtag, "Got Menu Item ID: " + menuItem.getItemId());
+
                     if (menuItem.getItemId() == R.id.copy_to_clipboard) {
-                        Utils.setClipboard(view.getContext(), clip_text);
+                        Utils.setClipboard(view.getContext(), clip_text, clip_format);
                     } else if (menuItem.getItemId() == R.id.share) {
-                        openShareMenu(clip_text);
+                        openShareMenu(clip_text, clip_format);
+                    } else if (menuItem.getItemId() == R.id.save_to_file) {
+                        image = Utils.B64StringToImage(clip_text);
+                        getPermissionAndSaveBitmapToGallery(image);
                     }
-                }
+
                 return true;
             }
         });
         popupMenu.show();
     }
 
-    private void openShareMenu(String clip_text) {
-        final Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TEXT, clip_text);
-        try {
-            startActivity(Intent.createChooser(intent, "Select an action"));
-        } catch (android.content.ActivityNotFoundException ex) {
-            // (handle error)
+    private void getPermissionAndSaveBitmapToGallery(Bitmap image) {
+        int check = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (check == PackageManager.PERMISSION_GRANTED) {
+            Log.d(logtag, "Has permissions for WRITE_EXTERNAL_STORAGE");
+            Utils.SaveBitmapToGallery(this, image, "Clipster image", "Image shared via Clipster");
+        } else {
+            Log.d(logtag, "No Permission for WRITE_EXTERNAL_STORAGE. Asking for it");
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_EXTERNAL_STORAGE_REQUEST);
+        }
+
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case WRITE_EXTERNAL_STORAGE_REQUEST: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(logtag, "Permission granted!");
+                    Utils.SaveBitmapToGallery(this, image, "Clipster image", "Image shared via Clipster");
+                } else {
+                    Log.d(logtag, "Permission not granted");
+                }
+            }
         }
     }
 
+
+    private void openShareMenu(String clip_text, String clip_format) {
+        // openShareMenu and deal with txt vs image sharing
+        final Intent intent = new Intent(Intent.ACTION_SEND);
+        if (clip_format.equals("txt")) {
+            intent.setType("text/plain");
+            intent.putExtra(Intent.EXTRA_TEXT, clip_text);
+        } else if (clip_format.equals("img")) {
+            intent.setType("image/png");
+            Bitmap image = Utils.B64StringToImage(clip_text);
+            Uri imageUri = Utils.BitmapToTempFileAsUri(this, image);
+            intent.putExtra(Intent.EXTRA_STREAM, imageUri);
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Select an action"));
+        } catch (android.content.ActivityNotFoundException e) {
+            Log.e(logtag, "Error: " + e);
+        }
+    }
 
     private View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
         public void onDebouncedClick(View v) {
@@ -135,7 +184,7 @@ public class ListClipsActivity extends AppCompatActivity {
             if(action_tag.equals("back")) {
                 finish();
             } else if (action_tag.equals("copy_to_clipboard")) {
-                Utils.setClipboard(v.getContext(), clip_text);
+                // Utils.setClipboard(v.getContext(), clip_text);
             }
         }
     };

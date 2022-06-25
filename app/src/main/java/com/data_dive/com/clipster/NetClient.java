@@ -346,7 +346,9 @@ public class NetClient {
             } else if(rsp_req_type.equals("get_last_clip")) {
                 try {
                     Log.d(logtag, "Get_last_clip successful: " + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
-                    Utils.setClipboard(mContext, clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
+                    Utils.setClipboard(mContext,
+                            clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
+                            clips.getJSONObject(clips.length() - 1).getString("format"));
                 } catch (JSONException e) {
                 }
             } else if(rsp_req_type.equals("get_all_clips")) {

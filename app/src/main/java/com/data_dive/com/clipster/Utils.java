@@ -1,17 +1,24 @@
 package com.data_dive.com.clipster;
 
+import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.FileProvider;
 
 import com.amdelamar.jhash.Hash;
 import com.amdelamar.jhash.algorithms.Type;
@@ -25,6 +32,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.TemporalAmount;
@@ -109,14 +118,20 @@ public class Utils {
         editor.clear().commit();
     }
 
-    public static void setClipboard(Context context, String clip_text) {
+    public static void setClipboard(Context context, String clip_text, String clip_format) {
         // Move text to clipboard and display message
-        String clip_text_show = clip_text.substring(0, Math.min(clip_text.length(), MAX_CLIP_SHOW_LEN));
-        if (clip_text.length() > MAX_CLIP_SHOW_LEN) { clip_text_show = clip_text_show + " [...]"; }
-        Log.d(logtag, "Storing text to clipboard: " + clip_text);
-        ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
-        ClipData clip = ClipData.newPlainText("Clipster", clip_text);
-        cb.setPrimaryClip(clip);
+        String clip_text_show = "";
+
+        if (clip_format.equals("txt")) {
+            clip_text_show = clip_text.substring(0, Math.min(clip_text.length(), MAX_CLIP_SHOW_LEN));
+            if (clip_text.length() > MAX_CLIP_SHOW_LEN) {
+                clip_text_show = clip_text_show + " [...]";
+            }
+            Log.d(logtag, "Storing text to clipboard: " + clip_text);
+            ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Clipster", clip_text);
+            cb.setPrimaryClip(clip);
+        }
         // Show Preview
         Toast.makeText(context, context.getString(R.string.app_name) + " - set Clipboard to:\n"
                 + clip_text_show, Toast.LENGTH_LONG).show();
@@ -257,28 +272,35 @@ public class Utils {
         return clips;
     }
 
-/*    public static  ArrayList<Bitmap> ProcessImages(Context mContext, JSONArray clips) {
-        // ProcessImages creates Bitmap Images from decrypted b64 representation of images
-        JSONObject clip;
-        String text_decrypted;
-        String format;
-        ArrayList<Bitmap> images;
-        Bitmap image;
-
-        for(int i=0;i<=clips.length();i++) {
-            try {
-                clip = clips.getJSONObject(i);
-                text_decrypted = clip.getString("text_decrypted");
-                format = clip.getString("format");
-                if(format=="img") {
-                    image = B64StringToImage(text_decrypted);
-                    images.add(image);
-                    Log.d(logtag, "Created image from text");
-                }
-            } catch(JSONException e) {
-            }
+    public static Uri BitmapToTempFileAsUri(Context mContext, Bitmap bitmap) {
+        // Store Bitmap image to a temp .png file and return uri via FileProvider
+        File file = new File(mContext.getCacheDir(),"tmp.png");
+        Log.d(logtag, "file: " + file);
+        try {
+            FileOutputStream fOut = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fOut);
+            fOut.flush();
+            fOut.close();
+            file.setReadable(true, false);
+        } catch (Exception e) {
+            Log.e(logtag, "Error: " + e);
         }
-        return images;
-    }*/
+        Uri imageUri = FileProvider.getUriForFile(
+                mContext,
+                "com.data_dive.com.clipster.provider",
+                file);
+        Log.d(logtag, "URI: " + imageUri);
+        return imageUri;
+    }
+
+    public static void SaveBitmapToGallery(Context mContext, Bitmap image, String title, String description) {
+        try {
+            ContentResolver cr = mContext.getContentResolver();
+            MediaStore.Images.Media.insertImage(cr, image, title, description);
+        } catch(Exception e) {
+            Log.e(logtag, "Error: " + e);
+        }
+        Log.d(logtag, "Saved image to gallery: " + title + " " + description);
+    }
 
 }

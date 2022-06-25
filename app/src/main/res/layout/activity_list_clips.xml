@@ -37,21 +37,21 @@ android:background="@drawable/grdnt">
             android:paddingLeft="80dp"
             android:paddingRight="80dp"
             android:orientation="vertical">
-            <TextView
-                android:id="@+id/CopyToClipboard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#000000"
-                android:letterSpacing="0.2"
-                android:text="@string/copy_to_clipboard"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:padding="16dp"
-                android:layout_weight="0"
-                android:gravity="center"
-                />
+<!--            <TextView-->
+<!--                android:id="@+id/CopyToClipboard"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:background="#000000"-->
+<!--                android:letterSpacing="0.2"-->
+<!--                android:text="@string/copy_to_clipboard"-->
+<!--                android:textColor="#FFFFFF"-->
+<!--                android:textStyle="bold"-->
+<!--                android:layout_marginTop="10dp"-->
+<!--                android:layout_marginBottom="10dp"-->
+<!--                android:padding="16dp"-->
+<!--                android:layout_weight="0"-->
+<!--                android:gravity="center"-->
+<!--                />-->
             <TextView
                 android:id="@+id/Back"
                 android:layout_width="match_parent"

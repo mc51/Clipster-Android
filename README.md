@@ -3,7 +3,7 @@
 [![GitHub Actions Build Workflow](https://github.com/mc51/Clipster-Android/workflows/Build/badge.svg)](https://github.com/mc51/Clipster-Android/actions)
 
 Clipster is a multi platform cloud clipboard:  
-Copy a text on your smartphone and paste it on your desktop, or vice versa.  
+Copy a text or image on your smartphone and paste it on your desktop, or vice versa.  
 Easy, secure, open source.  
 Supports Android, Linux, MacOS, Windows and all browsers.  
   

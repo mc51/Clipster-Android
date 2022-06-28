@@ -28,8 +28,8 @@ To get a text that was shared from one of your devices, select `Get last Clip` o
 
 - [x] Encrypt / Decrypt clipboard locally and only transmit encrypted data to server
 - [x] Add clipboard history: share multiple Clips
+- [x] Support image sharing
 - [ ] F-Store release
-- [ ] Support image sharing
 - [ ] Google Play Store release
   
 ## Contributions

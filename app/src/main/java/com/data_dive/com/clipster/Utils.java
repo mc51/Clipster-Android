@@ -332,6 +332,7 @@ public class Utils {
 
     public static void SaveBitmapToGallery(Context mContext, Bitmap image, String title, String description) {
         // SaveBitmapToGallery and show Toast on success
+        // TODO: Add date to filename so not to overwrite?
         try {
             ContentResolver cr = mContext.getContentResolver();
             MediaStore.Images.Media.insertImage(cr, image, title, description);

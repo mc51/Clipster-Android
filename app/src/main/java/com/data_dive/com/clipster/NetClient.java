@@ -139,8 +139,11 @@ public class NetClient {
         req.execute(request_uri, credentials.token_b64, "get_all_clips",  "");
     }
 
-    protected void SetClipOnServer(String clip) {
+    protected void SetClipOnServer(String clip, String format) {
         // Encrypt clip and create Payload for calling request
+        if (format == null) {
+            format = "txt";
+        }
         ClientRequest req = new ClientRequest(mContext);
         String request_uri = SERVER_URI + URI_CLIP;
         String payload = "";
@@ -150,6 +153,7 @@ public class NetClient {
         try {
             jsonPayload.put("text", clip_encrypted);
             jsonPayload.put("device", device_name);
+            jsonPayload.put("format", format);
             payload = jsonPayload.toString();
             Log.d(logtag, "Parsed text to json: " + payload);
         }  catch(JSONException e) {
@@ -375,15 +379,25 @@ public class NetClient {
         /**
          * Parse OK HTTP Response from JSON to ArrayList<Clip>
          */
+        JSONObject clip = null;
         JSONArray clips = null;
         try {
             clips = new JSONArray(res);
             clips = Utils.DecryptClips(mContext, clips);
         } catch (JSONException e) {
-            Log.e(logtag, "Could not parse as JSONArray: " + res.toString());
-        }
+            Log.w(logtag, "Error: Could not parse as JSONArray: " + res.toString());
+            Log.w(logtag, "Parsing as single Object");
+            try {
+                clip = new JSONObject(res);
+                clips = new JSONArray();
+                clips.put(clip);
+                clips = Utils.DecryptClips(mContext, clips);
 
-        Log.d(logtag, "OK Parsing as JSONArray: " + clips.toString());
+            } catch (JSONException err) {
+                Log.e(logtag, "Error: could not parse Json as Array or Object.\n" + err);
+            }
+        }
+        Log.d(logtag, "Ok Parsing: " + clips.toString());
         return clips;
     }
 

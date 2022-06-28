@@ -3,6 +3,7 @@ package com.data_dive.com.clipster;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -27,14 +28,36 @@ public class ShareActivity extends AppCompatActivity {
         String type = intent.getType();
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
-            Log.d(logtag, "ACTION_SEND received");
-            if ("text/plain".equals(type)) {
+            Log.d(logtag, "ACTION_SEND received. Type: " + type);
+            if (type.equals("text/plain")) {
                 Log.d(logtag, "text/plain received.");
-                 handleSharedText(intent); // Handle text being sent
-            } else {
+                 handleSharedText(intent);
+            } else if(type.startsWith("image/")) {
+                Log.d(logtag, "Received shared image");
+                handleSharedImage(intent);
+            }
+            else {                
                 Log.d(logtag, "unknown MIME Type");
+                Toast.makeText(this, "Clipster:\nCould not share file." +
+                                "\nUnknown type received: " + type,
+                        Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private void handleSharedImage(Intent intent) {
+        Log.d(logtag, "handleSharedImage");
+        Uri imageUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (imageUri != null) {
+            Log.d(logtag, "received Image: " + imageUri);
+            String imageString = Utils.ImageUriToB64String(this, imageUri);
+            // Update clip to server
+            ClientSetClip(imageString, "img");
+            Toast.makeText(this, getString(R.string.app_name) + " got Image",
+                    Toast.LENGTH_LONG).show();
+        }
+        // directly finish so that our activity doesn't show in foreground
+        finish();
     }
 
     private void handleSharedText(Intent intent) {
@@ -48,7 +71,7 @@ public class ShareActivity extends AppCompatActivity {
                 ClientGetClip();
             } else {
                 // Update clip to server
-                ClientSetClip(shared_clip);
+                ClientSetClip(shared_clip, "txt");
             }
             Toast.makeText(this, getString(R.string.app_name) + " got new text: " + shared_clip,
                     Toast.LENGTH_LONG).show();
@@ -57,10 +80,10 @@ public class ShareActivity extends AppCompatActivity {
         finish();
     }
 
-    private void ClientSetClip(String clip) {
+    private void ClientSetClip(String clip, String format) {
         // Send Request for Updating the cloud clip
         NetClient client = new NetClient(this);
-        client.SetClipOnServer(clip);
+        client.SetClipOnServer(clip, format);
     }
 
     private void ClientGetClip() {

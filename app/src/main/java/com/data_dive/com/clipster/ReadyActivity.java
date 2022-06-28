@@ -80,7 +80,7 @@ public class ReadyActivity extends AppCompatActivity {
             Log.d(logtag, "Calling SetClip function");
             NetClient client = new NetClient(this);
             String clip = Utils.checkClipboard(this);
-            client.SetClipOnServer(clip);
+            client.SetClipOnServer(clip, null);
         } else if(action.equals("edit_creds")) {
             Log.d(logtag, "Calling edit_creds -> Start Main Activity");
             Intent i = new Intent(this, MainActivity.class);

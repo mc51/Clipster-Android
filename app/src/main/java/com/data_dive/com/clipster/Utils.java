@@ -129,9 +129,10 @@ public class Utils {
             clip = ClipData.newPlainText("Clipster", clip_text);
         } else if (clip_format.equals("img")) {
             Log.d(logtag, "Not implemented for images, because not supported by most Apps");
-//            Bitmap image = Utils.B64StringToImage(clip_text);
-//            Uri imageUri = BitmapToTempFileAsUri(context, image);
-//            clip = ClipData.newRawUri("Clipster Image", imageUri);
+            Bitmap image = Utils.B64StringToImage(clip_text);
+            Uri imageUri = BitmapToTempFileAsUri(context, image);
+            clip = ClipData.newRawUri("Clipster Image", imageUri);
+            clip_text_show = "Image";
         }
 
         cb.setPrimaryClip(clip);

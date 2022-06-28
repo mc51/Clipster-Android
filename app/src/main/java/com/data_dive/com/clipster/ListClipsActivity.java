@@ -6,13 +6,10 @@ import androidx.appcompat.widget.PopupMenu;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
-import android.app.Activity;
-import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -24,9 +21,6 @@ import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
 
 
 public class ListClipsActivity extends AppCompatActivity {
@@ -46,37 +40,26 @@ public class ListClipsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_list_clips);
 
         // Buttons
-        // copy_to_clipboard = findViewById(R.id.CopyToClipboard);
         back = findViewById(R.id.Back);
 
         // Initialize ListView for showing all Clips
         list = findViewById(R.id.ListOfClipsView);
-        JSONArray clips = null;
+        Clips myClips = Clips.getInstance();
+        JSONArray clips =  myClips.getData();
 
-        if (getIntent().getExtras() != null) {
-            String clips_string = getIntent().getStringExtra("clips");
-            try {
-                clips = new JSONArray(clips_string);
-            } catch(JSONException e) {
-                Log.e(logtag, "Could not convert to JSON array: " + clips_string + e);
-            }
-
-            if(clips != null && clips.length() > 0) {
-                // hackiest hack of all shitty hacks
-                int num_entries = clips.length();
-                String[] entry_placeholders = new String[num_entries];
-                CustomList cust_adapter = new CustomList(ListClipsActivity.this, clips, entry_placeholders);
-                list.setAdapter(cust_adapter);
-            } else {
-                // No Clips yet
-                ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.list_clips_items,
-                        R.id.clip_items_textview, new String[]{getString(R.string.empty_clip_list)});
-                list.setAdapter(adapter);
-            }
+        if(clips != null && clips.length() > 0) {
+            // hackiest hack of all shitty hacks
+            int num_entries = clips.length();
+            String[] entry_placeholders = new String[num_entries];
+            CustomList cust_adapter = new CustomList(ListClipsActivity.this, clips, entry_placeholders);
+            list.setAdapter(cust_adapter);
+        } else {
+            // No Clips yet
+            ArrayAdapter adapter = new ArrayAdapter<String>(this, R.layout.list_clips_items,
+                    R.id.clip_items_textview, new String[]{getString(R.string.empty_clip_list)});
+            list.setAdapter(adapter);
         }
 
-//        copy_to_clipboard.setOnClickListener(btnListener);
-//        copy_to_clipboard.setTag("copy_to_clipboard");
         back.setOnClickListener(btnListener);
         back.setTag("back");
 

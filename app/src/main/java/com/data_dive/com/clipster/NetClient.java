@@ -436,8 +436,9 @@ public class NetClient {
          */
         Log.d(logtag, "startListClipsActivity");
         try {
+            Clips myClips = Clips.getInstance();
+            myClips.setData(clips);
             Intent i = new Intent(context, ListClipsActivity.class);
-            i.putExtra("clips", clips.toString());
             mContext.startActivity(i);
         } catch (Exception e) {
             Log.e(logtag, "Error starting Activity: " + e);

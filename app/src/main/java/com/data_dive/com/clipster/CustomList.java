@@ -51,7 +51,7 @@ public class CustomList extends ArrayAdapter<String>{
                 image = Utils.B64StringToImage(text_decrypted);
                 ImageView imageView = (ImageView) rowView.findViewById(R.id.img);
                 imageView.setImageBitmap(image);
-            } else if (format.equals("txt")) {
+            } else {
                 rowView = inflater.inflate(R.layout.list_single_txt, null, true);
                 TextView txtTitle = (TextView) rowView.findViewById(R.id.txt);
                 txtTitle.setText(text_decrypted);

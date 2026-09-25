@@ -27,6 +27,14 @@ public class ShareActivity extends AppCompatActivity {
         String action = intent.getAction();
         String type = intent.getType();
 
+        if (!Utils.areCredsSaved(this)) {
+            Log.d(logtag, "Creds not saved. Cannot share.");
+            Toast.makeText(this, getString(R.string.app_name) + " - Please log in first",
+                    Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             Log.d(logtag, "ACTION_SEND received. Type: " + type);
             if (type.equals("text/plain")) {
@@ -51,10 +59,12 @@ public class ShareActivity extends AppCompatActivity {
         if (imageUri != null) {
             Log.d(logtag, "received Image: " + imageUri);
             String imageString = Utils.ImageUriToB64String(this, imageUri);
-            // Update clip to server
-            ClientSetClip(imageString, "img");
-            Toast.makeText(this, getString(R.string.app_name) + " got Image",
-                    Toast.LENGTH_LONG).show();
+            if (imageString != null) {
+                // Update clip to server
+                ClientSetClip(imageString, "img");
+                Toast.makeText(this, getString(R.string.app_name) + " got Image",
+                        Toast.LENGTH_LONG).show();
+            }
         }
         // directly finish so that our activity doesn't show in foreground
         finish();

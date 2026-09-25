@@ -53,8 +53,6 @@ public class MainActivity extends AppCompatActivity {
         login.setTag("login");
         register.setOnClickListener(btnListener);
         register.setTag("register");
-
-        checkForCreds();
     }
 
     private final View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
@@ -96,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(logtag, "Creds available. Switch to Ready Activity.");
                 Intent i = new Intent(this, ReadyActivity.class);
                 startActivity(i);
+                finish();
             }
         }
     }
@@ -127,7 +126,15 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.d(logtag, "server uri VALID: " + srv);
             Log.d(logtag, "Disable ssl certificate check: " + ignore);
-            Credentials creds = new Credentials(usr, pw, "", "", srv, ignore);
+            Credentials creds;
+            try {
+                creds = new Credentials(usr, pw, "", "", srv, ignore);
+            } catch (RuntimeException e) {
+                Log.e(logtag, "Could not create credentials: " + e);
+                Toast.makeText(this, getString(R.string.app_name) +
+                        " - Could not create encryption key from password", Toast.LENGTH_LONG).show();
+                return;
+            }
             NetClient client = new NetClient(this, creds);
 
             if (action.equals("login")) {

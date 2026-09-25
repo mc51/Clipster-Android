@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /**
  * We're authenticated - Show main screen
@@ -78,8 +79,13 @@ public class ReadyActivity extends AppCompatActivity {
             client.GetAllClipsFromServer();
         } else if(action.equals("set_clip")) {
             Log.d(logtag, "Calling SetClip function");
-            NetClient client = new NetClient(this);
             String clip = Utils.checkClipboard(this);
+            if (clip.isEmpty()) {
+                Toast.makeText(this, getString(R.string.app_name) + " - Clipboard is empty",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            NetClient client = new NetClient(this);
             client.SetClipOnServer(clip, null);
         } else if(action.equals("edit_creds")) {
             Log.d(logtag, "Calling edit_creds -> Start Main Activity");

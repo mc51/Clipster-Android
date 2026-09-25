@@ -1,6 +1,7 @@
 package com.data_dive.com.clipster;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -348,12 +349,18 @@ public class NetClient {
                         Toast.LENGTH_LONG).show();
                 startReadyActivity(mContext);
             } else if(rsp_req_type.equals("get_last_clip")) {
+                if (clips.length() == 0) {
+                    Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - No clip found on server",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
                 try {
                     Log.d(logtag, "Get_last_clip successful: " + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
                     Utils.setClipboard(mContext,
                             clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
                             clips.getJSONObject(clips.length() - 1).getString("format"));
                 } catch (JSONException e) {
+                    Log.e(logtag, "Could not read last clip: " + e);
                 }
             } else if(rsp_req_type.equals("get_all_clips")) {
                 Log.d(logtag, "Get_all_clips successful");
@@ -364,6 +371,7 @@ public class NetClient {
                     Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - shared Clip:\n" + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
                             Toast.LENGTH_LONG).show();
                 } catch (JSONException e) {
+                    Log.e(logtag, "Could not read shared clip: " + e);
                 }
             }
         } else {
@@ -395,6 +403,7 @@ public class NetClient {
 
             } catch (JSONException err) {
                 Log.e(logtag, "Error: could not parse Json as Array or Object.\n" + err);
+                clips = new JSONArray();
             }
         }
         Log.d(logtag, "Ok Parsing: " + clips.toString());
@@ -425,6 +434,9 @@ public class NetClient {
         try {
             Intent i = new Intent(context, ReadyActivity.class);
             mContext.startActivity(i);
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).finish();
+            }
         } catch (Exception e) {
             Log.e(logtag, "Exception calling: " + e);
         }

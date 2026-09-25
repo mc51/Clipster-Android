@@ -1,68 +1,62 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 android {
 
     def keyProps = new Properties()
     def keyPropsFile = rootProject.file('secret')
 
-    compileSdkVersion 30
-    buildToolsVersion "29.0.2"
+    namespace = 'com.data_dive.com.clipster'
+    compileSdk = 37
 
     signingConfigs {
         // load from secret file for not sharing on git
 
         if (keyPropsFile.exists()) {
-            keyProps.load(new FileInputStream(keyPropsFile))
+            keyPropsFile.withInputStream { keyProps.load(it) }
 
             clipster_key {
-                keyAlias keyProps['keyAlias']
-                keyPassword keyProps['keyPassword']
-                storeFile file(keyProps['storeFile'])
-                storePassword keyProps['storePassword']
+                keyAlias = keyProps['keyAlias']
+                keyPassword = keyProps['keyPassword']
+                storeFile = file(keyProps['storeFile'])
+                storePassword = keyProps['storePassword']
             }
         }
 
     }
 
     defaultConfig {
-        applicationId "com.data_dive.com.clipster"
-        minSdkVersion 26
-        targetSdkVersion 30
-        versionCode 8
-        versionName "0.5.0"
+        applicationId = "com.data_dive.com.clipster"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 8
+        versionName = "0.5.0"
     }
 
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             if (keyPropsFile.exists()) {
-                signingConfig signingConfigs.clipster_key
+                signingConfig = signingConfigs.clipster_key
             }
         }
     }
 
     // Needed for fernet-java8, otherwise strange untrackable behaviour
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-}
-
-repositories {
-    flatDir {
-        dirs'libs'
-    }
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.3.1'
-    implementation 'com.google.android.material:material:1.4.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.navigation:navigation-fragment:2.4.2'
-    implementation 'androidx.navigation:navigation-ui:2.4.2'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
+    implementation 'androidx.core:core:1.19.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.2'
     implementation 'com.macasaet.fernet:fernet-java8:1.5.0'
     implementation 'com.amdelamar:jhash:2.2.0'
 }

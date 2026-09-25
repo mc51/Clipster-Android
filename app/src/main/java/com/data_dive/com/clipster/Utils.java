@@ -2,7 +2,6 @@ package com.data_dive.com.clipster;
 
 
 import android.content.ClipData;
-import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -21,7 +20,6 @@ import com.amdelamar.jhash.algorithms.Type;
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
-import com.macasaet.fernet.TokenExpiredException;
 import com.macasaet.fernet.TokenValidationException;
 
 import org.json.JSONArray;
@@ -64,10 +62,21 @@ public class Utils {
 
 
     public static boolean areCredsSaved(Context context) {
-        // Check if creds are saved to file already
+        // Check if valid creds are saved to file already. Invalid ones (e.g. corrupted or
+        // restored from a backup of an older version) are cleared so the user can log in again.
         Log.d(logtag, "AreCredsSaved");
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
-        return pref.getBoolean(PREF_IS_SAVED, false);
+        if (!pref.getBoolean(PREF_IS_SAVED, false)) {
+            return false;
+        }
+        try {
+            getCreds(context);
+            return true;
+        } catch (RuntimeException e) {
+            Log.e(logtag, "Saved credentials are invalid, clearing them: " + e);
+            clearCreds(context);
+            return false;
+        }
     }
 
     public static void saveCreds(Context context, Credentials creds) {
@@ -130,11 +139,19 @@ public class Utils {
         } else if (clip_format.equals("img")) {
             Log.d(logtag, "Not implemented for images, because not supported by most Apps");
             Bitmap image = Utils.B64StringToImage(clip_text);
-            Uri imageUri = BitmapToTempFileAsUri(context, image);
-            clip = ClipData.newRawUri("Clipster Image", imageUri);
-            clip_text_show = "Image";
+            if (image != null) {
+                Uri imageUri = BitmapToTempFileAsUri(context, image);
+                clip = ClipData.newRawUri("Clipster Image", imageUri);
+                clip_text_show = "Image";
+            }
         }
 
+        if (clip == null) {
+            Log.e(logtag, "Could not create clip for format: " + clip_format);
+            Toast.makeText(context, context.getString(R.string.app_name) + " - Could not set clipboard",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
         cb.setPrimaryClip(clip);
         // Show Preview
         Toast.makeText(context, context.getString(R.string.app_name) + " - set Clipboard to:\n"
@@ -145,12 +162,14 @@ public class Utils {
         Log.d(logtag, "checkClipboard");
         String clip = "";
         ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
-        if (cb.hasPrimaryClip()) {
-            ClipData cd = cb.getPrimaryClip();
-            if (cd.getDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)) {
-                clip = cd.getItemAt(0).getText().toString();
-                Log.d(logtag, "Clipboard checked:\n" + clip);
+        ClipData cd = cb.getPrimaryClip();
+        if (cd != null && cd.getItemCount() > 0) {
+            // coerceToText also handles HTML and URI clips, where getText() may be null
+            CharSequence text = cd.getItemAt(0).coerceToText(context);
+            if (text != null) {
+                clip = text.toString();
             }
+            Log.d(logtag, "Clipboard checked:\n" + clip);
         }
         return clip;
     }
@@ -194,7 +213,6 @@ public class Utils {
         Key key = credentials.encryption_key;
         String cleartext = "";
 
-        Token token = Token.fromString(text);
         StringValidator validator = new StringValidator() {
             @Override
             public TemporalAmount getTimeToLive() {
@@ -204,12 +222,14 @@ public class Utils {
         };
 
         try {
+            Token token = Token.fromString(text);
             cleartext = token.validateAndDecrypt(key, validator);
-        } catch (TokenExpiredException e) {
-            Log.e(logtag, "Decrypt Error : " + e);
-            cleartext = "ERROR: Could not decrypt clip";
         } catch (TokenValidationException e) {
             Log.e(logtag, "Decrypt Error:" + e);
+            cleartext = "ERROR: Could not decrypt clip";
+        } catch (RuntimeException e) {
+            // Token.fromString throws IllegalArgumentException on malformed tokens
+            Log.e(logtag, "Decrypt Error, malformed token: " + e);
             cleartext = "ERROR: Could not decrypt clip";
         }
         Log.d(logtag, "CRYPTO: " + cleartext);
@@ -258,7 +278,10 @@ public class Utils {
     }
 
     public static String BitmapToB64String(Bitmap imageBitmap) {
-        // Encode Bitmap Image to a base64 string PNG
+        // Encode Bitmap Image to a base64 string PNG, null if there is no image
+        if (imageBitmap == null) {
+            return null;
+        }
         byte[] imageBytes = null;
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -266,7 +289,7 @@ public class Utils {
             imageBytes = bos.toByteArray();
         } catch (Exception e) {
             Log.e(logtag, "Error BitmapToB64String:" + e);
-            // TODO: Return placeholder image if no valid image found
+            return null;
         }
         return Base64.encodeToString(imageBytes, Base64.DEFAULT);
     }
@@ -276,7 +299,7 @@ public class Utils {
         String text;
         JSONObject clip;
 
-        for(int i=0;i<=clips.length();i++) {
+        for(int i=0;i<clips.length();i++) {
             try {
                 clip = clips.getJSONObject(i);
                 text = clip.getString("text");
@@ -335,10 +358,13 @@ public class Utils {
         // TODO: Add date to filename so not to overwrite?
         try {
             ContentResolver cr = mContext.getContentResolver();
-            MediaStore.Images.Media.insertImage(cr, image, title, description);
+            if (image == null || MediaStore.Images.Media.insertImage(cr, image, title, description) == null) {
+                throw new IllegalStateException("insertImage failed");
+            }
         } catch(Exception e) {
             Toast.makeText(mContext, "Error:\nCould not save Image to Gallery", Toast.LENGTH_LONG).show();
             Log.e(logtag, "Error: " + e);
+            return;
         }
         Toast.makeText(mContext, "Image saved to Gallery", Toast.LENGTH_LONG).show();
         Log.d(logtag, "Saved image to gallery: " + title + " " + description);

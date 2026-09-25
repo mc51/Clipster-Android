@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -68,11 +69,16 @@ public class ListClipsActivity extends AppCompatActivity {
             @Override
             public void onItemClick(AdapterView<?> parent, final View view,
                                     int position, long id) {
+                if (finalClips == null) {
+                    // Placeholder entry "no clips yet"
+                    return;
+                }
                 try {
                     clip_text = finalClips.getJSONObject(position).getString("text_decrypted");
                     clip_format = finalClips.getJSONObject(position).getString("format");
                 } catch (JSONException e) {
                     Log.e(logtag, "Error: " + e);
+                    return;
                 }
                 Log.d(logtag, "Got Item: " + clip_text);
                 openPopupMenu(view, clip_text, clip_format);
@@ -113,6 +119,11 @@ public class ListClipsActivity extends AppCompatActivity {
     }
 
     private void getPermissionAndSaveBitmapToGallery(Bitmap image) {
+        // MediaStore needs no storage permission from Android 10 on
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Utils.SaveBitmapToGallery(this, image, "Clipster image", "Image shared via Clipster");
+            return;
+        }
         int check = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (check == PackageManager.PERMISSION_GRANTED) {
             Log.d(logtag, "Has permissions for WRITE_EXTERNAL_STORAGE");

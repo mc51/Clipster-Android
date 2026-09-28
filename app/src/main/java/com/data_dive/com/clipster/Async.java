@@ -2,7 +2,6 @@ package com.data_dive.com.clipster;
 
 import android.os.Handler;
 import android.os.Looper;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 

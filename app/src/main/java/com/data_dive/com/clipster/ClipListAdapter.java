@@ -2,6 +2,7 @@ package com.data_dive.com.clipster;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.text.format.DateUtils;
 import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,24 +10,34 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Shows decrypted text and image clips. Rows are recycled and images are decoded
- * in the background as downsampled thumbnails, so scrolling stays smooth.
+ * Shows decrypted text and image clips with their device and time. Rows are recycled and images
+ * are decoded in the background as downsampled thumbnails, so scrolling stays smooth.
  */
 public class ClipListAdapter extends BaseAdapter {
 
     private static final int TYPE_TXT = 0;
     private static final int TYPE_IMG = 1;
 
+    private static final class ViewHolder {
+        final TextView text;
+        final ImageView image;
+        final TextView meta;
+
+        ViewHolder(View row) {
+            text = row.findViewById(R.id.txt);
+            image = row.findViewById(R.id.img);
+            meta = row.findViewById(R.id.meta);
+        }
+    }
+
+    private final Context context;
     private final LayoutInflater inflater;
-    private final JSONArray clips;
+    private final List<Clip> clips;
     private final int thumbnailSize;
     private final Set<Integer> loading = new HashSet<>();
     private final LruCache<Integer, Bitmap> thumbnails =
@@ -37,7 +48,8 @@ public class ClipListAdapter extends BaseAdapter {
                 }
             };
 
-    public ClipListAdapter(Context context, JSONArray clips) {
+    public ClipListAdapter(Context context, List<Clip> clips) {
+        this.context = context;
         this.inflater = LayoutInflater.from(context);
         this.clips = clips;
         this.thumbnailSize = context.getResources().getDisplayMetrics().widthPixels;
@@ -45,12 +57,12 @@ public class ClipListAdapter extends BaseAdapter {
 
     @Override
     public int getCount() {
-        return clips.length();
+        return clips.size();
     }
 
     @Override
-    public JSONObject getItem(int position) {
-        return clips.optJSONObject(position);
+    public Clip getItem(int position) {
+        return clips.get(position);
     }
 
     @Override
@@ -65,50 +77,63 @@ public class ClipListAdapter extends BaseAdapter {
 
     @Override
     public int getItemViewType(int position) {
-        return Utils.FORMAT_IMG.equals(format(position)) ? TYPE_IMG : TYPE_TXT;
-    }
-
-    public String text(int position) {
-        JSONObject clip = getItem(position);
-        return clip != null ? clip.optString("text_decrypted", "") : "";
-    }
-
-    public String format(int position) {
-        JSONObject clip = getItem(position);
-        return clip != null ? clip.optString("format", Utils.FORMAT_TXT) : Utils.FORMAT_TXT;
+        return getItem(position).isImage() ? TYPE_IMG : TYPE_TXT;
     }
 
     @Override
-    public View getView(int position, View view, ViewGroup parent) {
-        if (getItemViewType(position) == TYPE_TXT) {
-            if (view == null) {
-                view = inflater.inflate(R.layout.list_single_txt, parent, false);
-            }
-            ((TextView) view).setText(text(position));
-            return view;
+    public View getView(int position, View row, ViewGroup parent) {
+        Clip clip = getItem(position);
+        if (row == null) {
+            row = inflater.inflate(clip.isImage() ? R.layout.list_single_img : R.layout.list_single_txt, parent, false);
+            row.setTag(new ViewHolder(row));
         }
+        ViewHolder holder = (ViewHolder) row.getTag();
+        String meta = metaText(clip);
+        holder.meta.setText(meta);
+        holder.meta.setVisibility(meta.isEmpty() ? View.GONE : View.VISIBLE);
 
-        if (view == null) {
-            view = inflater.inflate(R.layout.list_single_img, parent, false);
+        if (clip.isImage()) {
+            bindImage(holder.image, position, clip);
+        } else {
+            holder.text.setText(clip.text);
         }
-        ImageView imageView = view.findViewById(R.id.img);
+        return row;
+    }
+
+    private String metaText(Clip clip) {
+        String time = "";
+        if (clip.createdAt != null) {
+            long created = clip.createdAt.toEpochMilli();
+            long now = System.currentTimeMillis();
+            time = now - created < DateUtils.MINUTE_IN_MILLIS
+                    ? context.getString(R.string.clip_just_now)
+                    : DateUtils.getRelativeTimeSpanString(
+                                    created, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
+                            .toString();
+        }
+        if (clip.device.isEmpty() || time.isEmpty()) {
+            return clip.device + time;
+        }
+        return context.getString(R.string.clip_meta, clip.device, time);
+    }
+
+    private void bindImage(ImageView imageView, int position, Clip clip) {
         imageView.setTag(position);
         Bitmap cached = thumbnails.get(position);
         imageView.setImageBitmap(cached);
-        if (cached == null && loading.add(position)) {
-            String b64 = text(position);
-            Async.run(() -> Utils.B64StringToThumbnail(b64, thumbnailSize), (bitmap, error) -> {
-                loading.remove(position);
-                if (bitmap == null) {
-                    return;
-                }
-                thumbnails.put(position, bitmap);
-                // The row may have been recycled for another clip in the meantime
-                if (Integer.valueOf(position).equals(imageView.getTag())) {
-                    imageView.setImageBitmap(bitmap);
-                }
-            });
+        if (cached != null || !loading.add(position)) {
+            return;
         }
-        return view;
+        Async.run(() -> Utils.b64ToThumbnail(clip.text, thumbnailSize), (bitmap, error) -> {
+            loading.remove(position);
+            if (bitmap == null) {
+                return;
+            }
+            thumbnails.put(position, bitmap);
+            // The row may have been recycled for another clip in the meantime
+            if (Integer.valueOf(position).equals(imageView.getTag())) {
+                imageView.setImageBitmap(bitmap);
+            }
+        });
     }
 }

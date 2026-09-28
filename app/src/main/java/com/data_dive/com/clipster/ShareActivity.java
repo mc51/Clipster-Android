@@ -1,19 +1,19 @@
 package com.data_dive.com.clipster;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.IntentCompat;
-
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.IntentCompat;
 
 /**
- *  Add our app to "share with" menu when sharing texts and images.
- *  Shows a small progress card until the clip is uploaded, then finishes.
+ * Adds Clipster to the "share with" menu for texts and images.
+ * Shows a small progress card until the clip is uploaded, then finishes.
  */
-
 public class ShareActivity extends AppCompatActivity implements NetClient.Listener {
+
+    private int runningRequests = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,47 +37,54 @@ public class ShareActivity extends AppCompatActivity implements NetClient.Listen
         if (!Intent.ACTION_SEND.equals(intent.getAction()) || type == null) {
             finish();
         } else if (type.equals("text/plain")) {
-            handleSharedText(intent);
+            shareText(intent);
         } else if (type.startsWith("image/")) {
-            handleSharedImage(intent);
+            shareImage(intent);
         } else {
-            Toast.makeText(this, getString(R.string.error_share_unknown_type, type), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.error_share_unknown_type, type), Toast.LENGTH_LONG)
+                    .show();
             finish();
         }
     }
 
-    private void handleSharedImage(Intent intent) {
+    private void shareImage(Intent intent) {
         Uri imageUri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri.class);
         if (imageUri == null) {
             finish();
             return;
         }
         // Decoding and re-encoding large images takes a while
-        Async.run(() -> Utils.ImageUriToB64String(this, imageUri), (imageString, error) -> {
-            if (imageString == null) {
-                Toast.makeText(this, R.string.error_open_image, Toast.LENGTH_LONG).show();
+        Async.run(() -> Utils.imageUriToB64(this, imageUri), (image, error) -> {
+            if (image == null) {
+                Toast.makeText(this, R.string.error_open_image, Toast.LENGTH_LONG)
+                        .show();
                 finish();
                 return;
             }
-            new NetClient(this).SetClipOnServer(imageString, Utils.FORMAT_IMG);
+            new NetClient(this).shareClip(image, Clip.FORMAT_IMG);
         });
     }
 
-    private void handleSharedText(Intent intent) {
-        String shared_clip = intent.getStringExtra(Intent.EXTRA_TEXT);
-        if (shared_clip == null || shared_clip.isEmpty()) {
+    private void shareText(Intent intent) {
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (text == null || text.isEmpty()) {
             finish();
             return;
         }
-        new NetClient(this).SetClipOnServer(shared_clip, Utils.FORMAT_TXT);
+        new NetClient(this).shareClip(text, Clip.FORMAT_TXT);
     }
 
     @Override
     public void onRequestStarted() {
+        runningRequests++;
     }
 
     @Override
     public void onRequestFinished() {
-        finish();
+        // A retry after trusting the server certificate starts before the first request finishes
+        runningRequests = Math.max(0, runningRequests - 1);
+        if (runningRequests == 0) {
+            finish();
+        }
     }
 }

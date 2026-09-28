@@ -1,5 +1,5 @@
 plugins {
-    id 'com.android.application'
+    alias(libs.plugins.android.application)
 }
 
 // The git tag (vMAJOR.MINOR.PATCH) is the only place the version is maintained.
@@ -48,7 +48,7 @@ android {
         // Also hardcoded in res/xml/shortcuts.xml
         applicationId = "com.data_dive.com.clipster"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         // e.g. v0.7.2 -> 702. Must only ever increase, Android refuses to install downgrades.
         versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
         versionName = "$versionMajor.$versionMinor.$versionPatch"
@@ -74,10 +74,9 @@ android {
 
     lint {
         abortOnError = true
-        checkDependencies = false
-        // New issues fail the build, known ones are listed in the baseline.
-        // Regenerate with: ./gradlew updateLintBaseline
-        baseline = file('lint-baseline.xml')
+        warningsAsErrors = true
+        // Only reported: Dependabot takes care of updates, new SDK versions need testing first
+        informational += ['GradleDependency', 'AndroidGradlePluginVersion', 'NewerVersionAvailable', 'OldTargetApi']
     }
 
     testOptions {
@@ -88,14 +87,17 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.8.0'
-    implementation 'androidx.core:core:1.19.1'
-    implementation 'androidx.constraintlayout:constraintlayout:2.2.2'
-    implementation 'com.google.android.material:material:1.14.0'
-    implementation 'com.macasaet.fernet:fernet-java8:1.5.0'
-    implementation 'com.amdelamar:jhash:2.2.0'
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.core
+    implementation libs.androidx.constraintlayout
+    implementation libs.material
+    implementation libs.okhttp
+    implementation libs.fernet
+    implementation libs.jhash
 
-    testImplementation 'junit:junit:4.13.2'
+    testImplementation libs.junit
     // The Android SDK only ships stubs of org.json for unit tests
-    testImplementation 'org.json:json:20260814'
+    testImplementation libs.org.json
+    // Generates certificates for the TLS trust tests
+    testImplementation libs.okhttp.tls
 }

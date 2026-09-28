@@ -1,0 +1,12 @@
+Clipster is a multi platform cloud clipboard: copy a text or image on your smartphone and paste it on your desktop, or vice versa.
+
+<b>Features</b>
+<ul>
+<li>Share texts and images from any app with the share menu, or share your clipboard</li>
+<li>Get the last clip with one tap or from the app shortcut, or pick one from your recent clips</li>
+<li>Clips are encrypted on your device, the server only stores encrypted data</li>
+<li>Use the public server at clipster.cc or run your own Clipster-Server, also with a self-signed certificate</li>
+<li>No ads, no analytics, no trackers</li>
+</ul>
+
+Clients are available for Android, Linux, macOS, Windows and all browsers. Source code and the desktop client: https://github.com/mc51

@@ -4,12 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.macasaet.fernet.Key;
-
-import org.junit.Test;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import org.junit.Test;
 
 /**
  * Expected values were generated independently of this code base with Python's hashlib and
@@ -42,22 +40,24 @@ public class CryptoTest {
 
     @Test
     public void deriveKey_nonAsciiPassword_isUtf8Encoded() {
-        assertEquals("da807iYOiUZngQv_La7PBS0OBX4t-4mXVIKqlPWkVMg=",
+        assertEquals(
+                "da807iYOiUZngQv_La7PBS0OBX4t-4mXVIKqlPWkVMg=",
                 Crypto.deriveKey("bob", "pässwörd-ü€", Crypto.ITERS_LOGIN_HASH));
-        assertEquals("U5apiIs8RYDrzHrpqGNxtGf0w1MfIJaZYpx4RRTd0WE=",
+        assertEquals(
+                "U5apiIs8RYDrzHrpqGNxtGf0w1MfIJaZYpx4RRTd0WE=",
                 Crypto.deriveKey("bob", "pässwörd-ü€", Crypto.ITERS_MSG_HASH));
     }
 
     @Test
     public void authToken_isBase64OfUserAndLoginHash() {
-        assertEquals("YWxpY2U6YkJ0aFhnOU9IdG9CaHpWUWFDdkotdFQ2U0JObTNrXzhkODRPRURWamw4RT0=",
+        assertEquals(
+                "YWxpY2U6YkJ0aFhnOU9IdG9CaHpWUWFDdkotdFQ2U0JObTNrXzhkODRPRURWamw4RT0=",
                 Crypto.authToken(USER, LOGIN_HASH));
     }
 
     @Test
     public void decrypt_tokenFromOtherClient() {
-        assertEquals("Hello from Clipster-Desktop ✂",
-                Crypto.decrypt(new Key(MSG_HASH), TOKEN, AFTER_TOKEN_CREATION));
+        assertEquals("Hello from Clipster-Desktop ✂", Crypto.decrypt(new Key(MSG_HASH), TOKEN, AFTER_TOKEN_CREATION));
     }
 
     @Test
@@ -81,8 +81,8 @@ public class CryptoTest {
     @Test
     public void credentials_fromPassword_matchesSavedHashes() {
         Credentials fromPw = Credentials.fromPassword(USER, PASSWORD, "https://clipster.cc", false);
-        assertEquals(LOGIN_HASH, fromPw.login_pw_hash);
-        assertEquals(MSG_HASH, fromPw.msg_pw_hash);
-        assertEquals(Crypto.authToken(USER, LOGIN_HASH), fromPw.token_b64);
+        assertEquals(LOGIN_HASH, fromPw.loginHash);
+        assertEquals(MSG_HASH, fromPw.msgHash);
+        assertEquals(Crypto.authToken(USER, LOGIN_HASH), fromPw.authToken);
     }
 }

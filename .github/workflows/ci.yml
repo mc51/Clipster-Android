@@ -32,8 +32,8 @@ jobs:
 
       # Unsigned release build: runs R8 like a real release, but needs no signing
       # secrets, so this also works for pull requests from forks
-      - name: Lint, unit tests and release build
-        run: ./gradlew lint testDebugUnitTest assembleRelease
+      - name: Formatting, lint, unit tests and release build
+        run: ./gradlew spotlessCheck lint testDebugUnitTest assembleRelease
 
       - name: Upload reports
         if: always()

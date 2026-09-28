@@ -22,9 +22,10 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_max="@dimen/content_max_width">
 
+            <!-- 250x135 px bitmap in drawable-nodpi, shown at the size it always had -->
             <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="250dp"
+                android:layout_height="135dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="@dimen/spacing_large"
                 android:contentDescription="@string/app_name"

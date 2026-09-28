@@ -5,7 +5,6 @@ import com.amdelamar.jhash.algorithms.Type;
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;

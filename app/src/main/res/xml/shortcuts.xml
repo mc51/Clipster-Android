@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="get_last_clip"
+        android:shortcutLongLabel="@string/shortcut_get_last_clip_long"
+        android:shortcutShortLabel="@string/shortcut_get_last_clip_short">
+        <!-- Static shortcuts can't use ${applicationId}, keep in sync with app/build.gradle -->
+        <intent
+            android:action="com.data_dive.com.clipster.action.GET_LAST_CLIP"
+            android:targetClass="com.data_dive.com.clipster.MainActivity"
+            android:targetPackage="com.data_dive.com.clipster" />
+    </shortcut>
+</shortcuts>

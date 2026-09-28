@@ -1,9 +1,21 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 plugins {
-    id 'com.android.application' version '9.4.1' apply false
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.spotless)
 }
 
-tasks.register('clean', Delete) {
-    delete rootProject.layout.buildDirectory
+// Check with ./gradlew spotlessCheck, fix with ./gradlew spotlessApply
+spotless {
+    java {
+        target 'app/src/**/*.java'
+        palantirJavaFormat(libs.versions.palantirJavaFormat.get())
+        removeUnusedImports()
+    }
+    format 'misc', {
+        target '*.gradle', '*.md', '.gitignore', 'gradle/*.toml', '.github/**/*.yml', '.github/**/*.md',
+                'app/src/**/*.xml', 'fastlane/**/*.txt'
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }

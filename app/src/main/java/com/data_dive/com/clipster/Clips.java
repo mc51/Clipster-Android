@@ -1,27 +1,23 @@
 package com.data_dive.com.clipster;
-import org.json.JSONArray;
 
-public class Clips {
+import java.util.List;
 
-    private static Clips instance;
+/**
+ * Holds the clips shown by ListClipsActivity. They can be too large for an Intent extra,
+ * so they are passed in memory and are lost when Android kills the process.
+ */
+public final class Clips {
 
-    // Global variable
-    private JSONArray clips;
+    private static List<Clip> clips;
 
-    // Restrict the constructor from being instantiated
-    private Clips(){}
+    private Clips() {}
 
-    public void setData(JSONArray clips){
-        this.clips = clips;
-    }
-    public JSONArray getData(){
-        return this.clips;
+    public static synchronized void set(List<Clip> newClips) {
+        clips = newClips;
     }
 
-    public static synchronized Clips getInstance(){
-        if(instance==null){
-            instance = new Clips();
-        }
-        return instance;
+    /** Null if no clips were loaded in this process */
+    public static synchronized List<Clip> get() {
+        return clips;
     }
 }

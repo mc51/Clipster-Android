@@ -1,459 +1,419 @@
 package com.data_dive.com.clipster;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
-
-import org.json.JSONArray;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import java.io.IOException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
+import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.TrustManager;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.X509Certificate;
-
 /**
- * Singleton Class for Dealing with Client requests
- * Async subclass for https requests
- * I guess this is really ugly: how would you do it properly?
- * TODO: Could clean up returns of request by using Object instead of Array
+ * Sends requests to the Clipster server. Network, encryption and decryption run in the background,
+ * results are handled on the main thread. If the calling context implements {@link Listener}
+ * it is notified when a request starts and finishes, e.g. to show a progress indicator.
  */
-
 public class NetClient {
 
-    private final static String logtag = "NetClient";
-    private static final int TIMEOUT_CONN = 8000;
-    private final static String URI_REGISTER = "/register/";
-    private final static String URI_VERIFY = "/verify-user/";
-    private final static String URI_CLIP = "/copy-paste/";
+    public interface Listener {
+        void onRequestStarted();
 
-    private static Context mContext;
-    private static Credentials credentials;
-    private static String SERVER_URI = "";
-    private static String clip_clear = "";
-    private static String device_name;
-
-    protected NetClient(Context context) {
-        // Default constructor - we already have saved working credentials
-        Log.d(logtag, "Default constructor. Getting creds.");
-        credentials = Utils.getCreds(context);
-        SERVER_URI = credentials.server;
-        device_name = getDeviceName(context);
-
-        Log.d(logtag, "Default constructor.\nSERVER: " + SERVER_URI + "\nDevice Name: " + device_name);
-        if(credentials.ignore_cert) {
-            disableSSLCertChecks();
-        } else {
-            enableSSLCertChecks();
-        }
-        mContext = context;
+        void onRequestFinished();
     }
 
-    protected NetClient(Context context, Credentials creds) {
-        // Constructor before we have saved credentials
-        credentials = creds;
-        SERVER_URI = credentials.server;
-        device_name = getDeviceName(context);
-
-        if(credentials.ignore_cert) {
-            disableSSLCertChecks();
-        } else {
-            enableSSLCertChecks();
-        }
-        mContext = context;
+    private enum RequestType {
+        LOGIN,
+        REGISTER,
+        GET_LAST_CLIP,
+        GET_ALL_CLIPS,
+        SET_CLIP
     }
 
-    private String getDeviceName(Context context) {
-        /**
+    /** Everything needed to send a request, so it can be repeated after trusting a certificate */
+    private static final class ApiRequest {
+        final RequestType type;
+        final String path;
+        final Async.Work<String> payload;
+        final String preview;
+
+        ApiRequest(RequestType type, String path, Async.Work<String> payload, String preview) {
+            this.type = type;
+            this.path = path;
+            this.payload = payload;
+            this.preview = preview;
+        }
+    }
+
+    private static final class Result {
+        int code;
+        String body = "";
+        List<Clip> clips = Collections.emptyList();
+        // Prepared in the background for GET_LAST_CLIP, as images need to be decoded and stored
+        ClipData clipData;
+        String clipPreview;
+        // Set when the server certificate isn't trusted, the user may choose to trust it
+        X509Certificate untrustedCertificate;
+        boolean localNetworkBlocked;
+
+        boolean isOk() {
+            return code == 200 || code == 201;
+        }
+    }
+
+    private static final String TAG = "NetClient";
+    private static final String PATH_REGISTER = "/register/";
+    private static final String PATH_VERIFY = "/verify-user/";
+    private static final String PATH_CLIP = "/copy-paste/";
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+
+    // Shared, so all clients reuse one connection pool and thread pool
+    private static final OkHttpClient BASE_CLIENT = new OkHttpClient.Builder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build();
+
+    private final Context context;
+    private final Context appContext;
+    private final Credentials credentials;
+    private final String deviceName;
+    private final PinningTrustManager trustManager;
+    private final OkHttpClient client;
+
+    public NetClient(Context context) {
+        // We already have saved working credentials
+        this(context, Utils.getCreds(context));
+    }
+
+    public NetClient(Context context, Credentials credentials) {
+        this.context = context;
+        this.appContext = context.getApplicationContext();
+        this.credentials = credentials;
+        this.deviceName = getDeviceName(context);
+        try {
+            trustManager = new PinningTrustManager(credentials.pinnedCertificate);
+            SSLContext ssl = SSLContext.getInstance("TLS");
+            ssl.init(null, new TrustManager[] {trustManager}, null);
+            client = BASE_CLIENT
+                    .newBuilder()
+                    .sslSocketFactory(ssl.getSocketFactory(), trustManager)
+                    .hostnameVerifier(trustManager.hostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier()))
+                    .build();
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("Could not set up TLS", e);
+        }
+    }
+
+    public void login() {
+        execute(new ApiRequest(RequestType.LOGIN, PATH_VERIFY, null, null));
+    }
+
+    public void register() {
+        execute(new ApiRequest(
+                RequestType.REGISTER,
+                PATH_REGISTER,
+                () -> new JSONObject()
+                        .put("username", credentials.user)
+                        .put("password", credentials.loginHash)
+                        .toString(),
+                null));
+    }
+
+    public void getLastClip() {
+        execute(new ApiRequest(RequestType.GET_LAST_CLIP, PATH_CLIP, null, null));
+    }
+
+    public void getAllClips() {
+        execute(new ApiRequest(RequestType.GET_ALL_CLIPS, PATH_CLIP, null, null));
+    }
+
+    public void shareClip(String text, String format) {
+        execute(new ApiRequest(
+                RequestType.SET_CLIP,
+                PATH_CLIP,
+                () -> new JSONObject()
+                        .put("text", Crypto.encrypt(credentials.encryptionKey, text))
+                        .put("device", deviceName)
+                        .put("format", format)
+                        .toString(),
+                Utils.clipPreview(appContext, text, format)));
+    }
+
+    private interface SettingLookup {
+        String get();
+    }
+
+    private static String getDeviceName(Context context) {
+        /*
          * Try to get the user defined device name
-         * Unfortunately there is no definite way: we try the most common
+         * Unfortunately there is no definite way: we try the most common.
+         * bluetooth_name throws a SecurityException for apps targeting Android 12L+, so each
+         * lookup is tried on its own.
          */
-        String name;
-        try {
-            name = Settings.Secure.getString(context.getContentResolver(), "bluetooth_name");
-            if(name == null) {
-                name = Settings.System.getString(context.getContentResolver(), "bluetooth_name");
-            }
-            if(name == null) {
-                name = Settings.Global.getString(context.getContentResolver(), Settings.Global.DEVICE_NAME);
-            }
-            if (name == null) {
-                name = "android";
-            }
-        } catch(Exception e) {
-            Log.e(logtag,"Couldn't get device name: " +  e.toString());
-            name = "android";
-        }
-        return name;
-    }
-
-    protected void Login() {
-        ClientRequest req = new ClientRequest(mContext);
-        String request_uri = SERVER_URI + URI_VERIFY;
-        Log.d(logtag," Login function. Token: " + credentials.token_b64);
-        req.execute(request_uri, credentials.token_b64, "login", "");
-    }
-
-    protected void Register() {
-        // Register new account on server
-        ClientRequest req = new ClientRequest(mContext);
-        String request_uri = SERVER_URI + URI_REGISTER;
-        String payload = "";
-        JSONObject jsonPayload = new JSONObject();
-        try {
-            jsonPayload.put("username", credentials.user);
-            jsonPayload.put("password", credentials.login_pw_hash);
-            payload = jsonPayload.toString();
-            Log.d(logtag, "Parsed text to json: " + payload);
-        }  catch(JSONException e) {
-            Log.e(logtag, "Could not parse text to json: " + payload);
-        }
-        req.execute(request_uri, credentials.token_b64, "register", payload);
-    }
-
-    protected void GetLastClipFromServer() {
-        ClientRequest req = new ClientRequest(mContext);
-        String request_uri = SERVER_URI + URI_CLIP;
-        req.execute(request_uri, credentials.token_b64, "get_last_clip",  "");
-    }
-
-    protected void GetAllClipsFromServer() {
-        ClientRequest req = new ClientRequest(mContext);
-        String request_uri = SERVER_URI + URI_CLIP;
-        req.execute(request_uri, credentials.token_b64, "get_all_clips",  "");
-    }
-
-    protected void SetClipOnServer(String clip, String format) {
-        // Encrypt clip and create Payload for calling request
-        if (format == null) {
-            format = "txt";
-        }
-        ClientRequest req = new ClientRequest(mContext);
-        String request_uri = SERVER_URI + URI_CLIP;
-        String payload = "";
-        JSONObject jsonPayload = new JSONObject();
-        clip_clear = clip;
-        String clip_encrypted = Utils.encryptText(mContext, clip);
-        try {
-            jsonPayload.put("text", clip_encrypted);
-            jsonPayload.put("device", device_name);
-            jsonPayload.put("format", format);
-            payload = jsonPayload.toString();
-            Log.d(logtag, "Parsed text to json: " + payload);
-        }  catch(JSONException e) {
-            Log.e(logtag, "Could not parse clip text to json: " + clip);
-        }
-        req.execute(request_uri, credentials.token_b64, "set_clip", payload);
-    }
-
-    public static void disableSSLCertChecks() {
-        /** Ignore Self signed SSL Certificated - Trust all certs
-         *  Don't check for hostname match either
-         *  https://stackoverflow.com/questions/2893819/accept-servers-self-signed-ssl-certificate-in-java-client
-         */
-        Log.d(logtag, "Disabling SSL Cert Checks");
-        TrustManager[] trustAllCerts = new TrustManager[] {
-                new X509TrustManager() {
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                        return new X509Certificate[0];
-                    }
-                    @SuppressLint("TrustAllX509TrustManager")
-                    public void checkClientTrusted(
-                            java.security.cert.X509Certificate[] certs, String authType) {
-                    }
-                    @SuppressLint("TrustAllX509TrustManager")
-                    public void checkServerTrusted(
-                            java.security.cert.X509Certificate[] certs, String authType) {
-                    }
-                }
+        ContentResolver cr = context.getContentResolver();
+        SettingLookup[] lookups = {
+            () -> Settings.Global.getString(cr, Settings.Global.DEVICE_NAME),
+            () -> Settings.Secure.getString(cr, "bluetooth_name"),
+            () -> Settings.System.getString(cr, "bluetooth_name"),
         };
-        // Install the all-trusting trust manager
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-                @SuppressLint("BadHostnameVerifier")
-                @Override
-                public boolean verify(String arg0, SSLSession arg1) {
-                    return true;
-                }
-            });
-        } catch (GeneralSecurityException e) {
-            Log.e(logtag, e.toString());
-        }
-    }
-
-    public static void enableSSLCertChecks() {
-        // Re-enable SSL Certification Checks
-        Log.d(logtag, "Enabling SSL Cert Checks");
-        // Install standard trust manager
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, null, null);
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            HttpsURLConnection.setDefaultHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
-        } catch (GeneralSecurityException e) {
-            Log.e(logtag, "Error enabling SSL Cert: " + e.toString());
-        }
-    }
-
-    // Send request to API on server
-    public static class ClientRequest extends AsyncTask<String, Void, ArrayList> {
-
-        private ArrayList<String> return_values = new ArrayList<String>();
-
-        private ClientRequest(Context context) {
-            mContext = context;
-        }
-
-        @Override
-        protected ArrayList doInBackground(String[] params) {
-            // do above Server call here
-            String request_uri = params[0];
-            String token = params[1];
-            String req_type = params[2];
-            String payload = params[3];
-            StringBuilder webPage = new StringBuilder();
-            String data = "";
-            int response_code = 0;
-            BufferedReader r_buffer;
-
-            String mode = "GET";
-            if (!payload.isEmpty()) {
-                // if we have a payload, we post it
-                mode = "POST";
-            }
-            Log.d(logtag, request_uri + " " + mode + " " + token + " " + req_type + " " + payload);
-
+        for (SettingLookup lookup : lookups) {
             try {
-                URL url = new URL(request_uri);
-                HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-                conn.setConnectTimeout(TIMEOUT_CONN);
-                conn.setRequestProperty("Content-type", "application/json; utf-8");
-                conn.setRequestProperty("Accept", "application/json");
-
-                if(!req_type.equals("register")) {
-                    // For register request don't authenticate
-                    conn.setRequestProperty("Authorization", "Basic " + token);
+                String name = lookup.get();
+                if (name != null && !name.isEmpty()) {
+                    return name;
                 }
+            } catch (RuntimeException e) {
+                Log.d(TAG, "Device name lookup failed: " + e.getClass().getSimpleName());
+            }
+        }
+        return "android";
+    }
 
-                if (mode.equals("POST")) {
-                    Log.d(logtag, "POST: " + payload);
-                    conn.setRequestMethod("POST");
-                    conn.setDoOutput(true);
-                    try (OutputStream os = conn.getOutputStream()) {
-                        byte[] input = payload.getBytes(StandardCharsets.UTF_8);
-                        os.write(input, 0, input.length);
-                    } catch (Exception e) {
-                        Log.d(logtag, "Exception in outstream: " + e);
-                    }
-                } else if (mode.equals("GET")) {
-                    Log.d(logtag, "GET");
-                    conn.setRequestMethod("GET");
-                    try {
-                        conn.connect();
-                    } catch (Exception e) {
-                        Log.e(logtag, "Get connection: " + e);
-                    }
-                }
-
-                response_code = conn.getResponseCode();
-                Log.d(logtag, "Response: " + response_code);
-
-                if (response_code >= 200 && response_code <= 399) {
-                    // OK response
-                    r_buffer = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+    private void execute(ApiRequest request) {
+        notifyStarted();
+        Async.run(() -> perform(request), (result, error) -> {
+            boolean waitForUser = false;
+            try {
+                if (error != null) {
+                    handleError(request, error);
                 } else {
-                    // Error response code
-                    r_buffer = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "UTF-8"));
+                    waitForUser = handleResult(request, result);
                 }
-                while ((data = r_buffer.readLine()) != null) {
-                    webPage.append(data).append("\n");
+            } finally {
+                if (!waitForUser) {
+                    notifyFinished();
                 }
-            } catch (Exception e) {
-                Log.d(logtag, "Exception: " + e);
-                webPage.append(e.toString());
             }
-            return_values.add(SERVER_URI);
-            return_values.add(token);
-            return_values.add(req_type);
-            return_values.add(Integer.toString(response_code));
-            return_values.add(webPage.toString());
-            Log.d(logtag, "HTTP Values Answer: " + return_values);
-            return return_values;
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList values) {
-            Log.d(logtag, "onPostExecute: " + values);
-            // Deal with responses
-            handleRequestAnswer(values);
-        }
+        });
     }
 
-    private static void handleRequestAnswer(ArrayList values) {
-        // Called from NetClient class when request finishes
-        // TODO: use custom Object as with Credentials might be a lot nicer
-        String rsp_server_uri = "";
-        String rsp_token = "";
-        String rsp_req_type = "";
-        String rsp_code = "";
-        String rsp_msg = "";
-        String message_error = null;
-        JSONArray clips = null;
-
-        try {
-            rsp_server_uri = values.get(0).toString();
-            rsp_token = values.get(1).toString();
-            rsp_req_type = values.get(2).toString();
-            rsp_code = values.get(3).toString();
-            rsp_msg = values.get(4).toString();
-        } catch (IndexOutOfBoundsException e) {
-            Log.e(logtag, "not all values returned.");
+    private Result perform(ApiRequest request) throws Exception {
+        String payload = request.payload != null ? request.payload.run() : null;
+        Request.Builder builder =
+                new Request.Builder().url(credentials.server + request.path).header("Accept", "application/json");
+        if (request.type != RequestType.REGISTER) {
+            builder.header("Authorization", "Basic " + credentials.authToken);
         }
-        Log.d(logtag, "Server: " + rsp_server_uri + " Req Type: " + rsp_req_type +
-                " Token :" + rsp_token +  " Resp Code: " + rsp_code + " Msg: " + rsp_msg);
+        if (payload != null) {
+            builder.post(RequestBody.create(payload, JSON));
+        }
 
-        // Handle http response codes
-        if (rsp_code.equals("200") || rsp_code.equals("201")) {
-            // OK Reponses
-            clips = parseJSONOKResponse(rsp_msg);
-            if(rsp_req_type.equals("login")) {
-                Log.d(logtag, "Login successful - saving Used credentials to file");
-                Utils.saveCreds(mContext, credentials);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Login successful!",
-                        Toast.LENGTH_LONG).show();
-                startReadyActivity(mContext);
-            } else if(rsp_req_type.equals("register")) {
-                Log.d(logtag, "Registration successful - saving Used credentials to file");
-                Utils.saveCreds(mContext, credentials);
-                Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - Registration successful!",
-                        Toast.LENGTH_LONG).show();
-                startReadyActivity(mContext);
-            } else if(rsp_req_type.equals("get_last_clip")) {
-                if (clips.length() == 0) {
-                    Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - No clip found on server",
-                            Toast.LENGTH_LONG).show();
-                    return;
-                }
-                try {
-                    Log.d(logtag, "Get_last_clip successful: " + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
-                    Utils.setClipboard(mContext,
-                            clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
-                            clips.getJSONObject(clips.length() - 1).getString("format"));
-                } catch (JSONException e) {
-                    Log.e(logtag, "Could not read last clip: " + e);
-                }
-            } else if(rsp_req_type.equals("get_all_clips")) {
-                Log.d(logtag, "Get_all_clips successful");
-                startListClipsActivity(mContext, clips);
-            } else if(rsp_req_type.equals("set_clip")) {
-                try {
-                    Log.d(logtag, "Set_clip successful: " + rsp_msg + "\n" + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"));
-                    Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - shared Clip:\n" + clips.getJSONObject(clips.length() - 1).getString("text_decrypted"),
-                            Toast.LENGTH_LONG).show();
-                } catch (JSONException e) {
-                    Log.e(logtag, "Could not read shared clip: " + e);
-                }
+        Log.d(TAG, request.type + " " + credentials.server + request.path);
+        Result result = new Result();
+        try (okhttp3.Response response = client.newCall(builder.build()).execute()) {
+            result.code = response.code();
+            result.body = response.body().string();
+        } catch (SSLException e) {
+            result.untrustedCertificate = trustManager.rejectedCertificate();
+            if (result.untrustedCertificate == null) {
+                throw e;
             }
+            return result;
+        } catch (IOException e) {
+            if (LocalNetwork.isPermissionMissing(appContext) && LocalNetwork.isLocalServer(credentials.server)) {
+                result.localNetworkBlocked = true;
+                return result;
+            }
+            throw e;
+        }
+        Log.d(TAG, "Response code: " + result.code);
+
+        if (result.isOk() && request.type != RequestType.SET_CLIP) {
+            result.clips = Clip.listFromJson(
+                    result.body, credentials.encryptionKey, appContext.getString(R.string.error_decrypt_clip));
+            if (request.type == RequestType.GET_LAST_CLIP && !result.clips.isEmpty()) {
+                Clip last = result.clips.get(result.clips.size() - 1);
+                result.clipData = Utils.createClipData(appContext, last);
+                result.clipPreview = Utils.clipPreview(appContext, last.text, last.format);
+            }
+        }
+        return result;
+    }
+
+    /** Returns true if the user is asked something, the request then finishes when the dialog is closed */
+    private boolean handleResult(ApiRequest request, Result result) {
+        if (result.untrustedCertificate != null) {
+            return askToTrustCertificate(request, result.untrustedCertificate);
+        }
+        if (result.localNetworkBlocked) {
+            showFailure(request.type, appContext.getString(R.string.error_local_network_permission));
+            return false;
+        }
+        if (!result.isOk()) {
+            showHttpError(request.type, result.code, parseErrorDetail(result.body));
+            return false;
+        }
+        switch (request.type) {
+            case LOGIN:
+            case REGISTER:
+                Utils.saveCreds(appContext, credentials);
+                toast(appContext.getString(
+                        request.type == RequestType.LOGIN
+                                ? R.string.msg_login_successful
+                                : R.string.msg_register_successful));
+                startActivity(new Intent(context, ReadyActivity.class), true);
+                break;
+            case GET_LAST_CLIP:
+                if (result.clips.isEmpty()) {
+                    toast(appContext.getString(R.string.msg_no_clip_on_server));
+                } else {
+                    Utils.setClipboard(appContext, result.clipData, result.clipPreview);
+                }
+                break;
+            case GET_ALL_CLIPS:
+                Clips.set(result.clips);
+                startActivity(new Intent(context, ListClipsActivity.class), false);
+                break;
+            case SET_CLIP:
+                toast(appContext.getString(R.string.msg_clip_shared, request.preview));
+                break;
+        }
+        return false;
+    }
+
+    private boolean askToTrustCertificate(ApiRequest request, X509Certificate certificate) {
+        if (!credentials.allowSelfSigned) {
+            showFailure(request.type, appContext.getString(R.string.error_certificate_untrusted));
+            return false;
+        }
+        if (!(context instanceof Activity)
+                || ((Activity) context).isFinishing()
+                || ((Activity) context).isDestroyed()) {
+            showFailure(request.type, appContext.getString(R.string.error_certificate_declined));
+            return false;
+        }
+        boolean changed = credentials.pinnedCertificate != null;
+        String host = URI.create(credentials.server).getHost();
+        String message = context.getString(
+                changed ? R.string.certificate_changed_message : R.string.trust_certificate_message,
+                host,
+                PinningTrustManager.fingerprint(certificate));
+        boolean[] trusted = {false};
+        new MaterialAlertDialogBuilder(context)
+                .setTitle(changed ? R.string.certificate_changed_title : R.string.trust_certificate_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.trust_certificate, (dialog, which) -> {
+                    trusted[0] = true;
+                    Credentials pinned = credentials.withPinnedCertificate(certificate);
+                    if (request.type != RequestType.LOGIN && request.type != RequestType.REGISTER) {
+                        // Login and register save the credentials once they succeed
+                        Utils.saveCreds(appContext, pinned);
+                    }
+                    // Started before this request finishes, so listeners don't see an idle state in between
+                    new NetClient(context, pinned).execute(request);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(dialog -> {
+                    if (!trusted[0]) {
+                        showFailure(request.type, appContext.getString(R.string.error_certificate_declined));
+                    }
+                    notifyFinished();
+                })
+                .show();
+        return true;
+    }
+
+    private void handleError(ApiRequest request, Exception error) {
+        Log.e(TAG, request.type + " failed: " + error);
+        String reason;
+        if (error instanceof SSLPeerUnverifiedException) {
+            reason = appContext.getString(R.string.error_certificate_hostname);
+        } else if (error instanceof IOException) {
+            reason = appContext.getString(R.string.error_connection, credentials.server);
+        } else if (error instanceof JSONException) {
+            reason = appContext.getString(R.string.error_invalid_response);
         } else {
-            // ERROR Responses
-            message_error = parseJSONErrorResponse(rsp_msg);
-            Toast.makeText(mContext, mContext.getString(R.string.app_name) + " - " + rsp_req_type + " failed with code: " +
-                            rsp_code + "\n" + "Message: " + message_error,
-                    Toast.LENGTH_LONG).show();
+            reason = appContext.getString(R.string.error_unexpected);
+        }
+        showFailure(request.type, reason);
+    }
+
+    private void showHttpError(RequestType type, int code, String detail) {
+        String reason;
+        if (code == 401 || code == 403) {
+            reason = appContext.getString(R.string.error_unauthorized);
+        } else if (detail != null && !detail.isEmpty()) {
+            reason = detail;
+        } else {
+            reason = appContext.getString(R.string.error_http_code, code);
+        }
+        showFailure(type, reason);
+    }
+
+    private void showFailure(RequestType type, String reason) {
+        toast(appContext.getString(R.string.error_request_failed, actionName(type), reason));
+    }
+
+    private String actionName(RequestType type) {
+        switch (type) {
+            case LOGIN:
+                return appContext.getString(R.string.login);
+            case REGISTER:
+                return appContext.getString(R.string.register);
+            case GET_LAST_CLIP:
+                return appContext.getString(R.string.get_last_clip);
+            case GET_ALL_CLIPS:
+                return appContext.getString(R.string.get_all_clips);
+            default:
+                return appContext.getString(R.string.set_clip);
         }
     }
 
-    private static JSONArray parseJSONOKResponse(String res) {
-        /**
-         * Parse OK HTTP Response from JSON to ArrayList<Clip>
-         */
-        JSONObject clip = null;
-        JSONArray clips = null;
+    private static String parseErrorDetail(String body) {
+        // Server errors look like {"detail": "..."}, anything else (e.g. an HTML page) is not shown
         try {
-            clips = new JSONArray(res);
-            clips = Utils.DecryptClips(mContext, clips);
+            return new JSONObject(body).getString("detail");
         } catch (JSONException e) {
-            Log.w(logtag, "Error: Could not parse as JSONArray: " + res.toString());
-            Log.w(logtag, "Parsing as single Object");
-            try {
-                clip = new JSONObject(res);
-                clips = new JSONArray();
-                clips.put(clip);
-                clips = Utils.DecryptClips(mContext, clips);
+            return null;
+        }
+    }
 
-            } catch (JSONException err) {
-                Log.e(logtag, "Error: could not parse Json as Array or Object.\n" + err);
-                clips = new JSONArray();
+    private void startActivity(Intent intent, boolean finishCurrent) {
+        if (context instanceof Activity) {
+            Activity activity = (Activity) context;
+            if (activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+            activity.startActivity(intent);
+            if (finishCurrent) {
+                activity.finish();
             }
         }
-        Log.d(logtag, "Ok Parsing: " + clips.toString());
-        return clips;
     }
 
-    private static String parseJSONErrorResponse(String res) {
-        /**
-         * Parse ok HTTP JSON responses and return ArrayList of Strings
-         */
-        String res_text = null;
-        try {
-            JSONObject jRes = new JSONObject(res);
-            res_text = jRes.getString("detail");
-        } catch(Exception JSONException) {
-            res_text = res;
-            Log.d(logtag, "Could not parse as JSONObject: " + res_text);
-        }
-        Log.d(logtag, "OK Parsing error JSON response: " + res_text);
-        return res_text;
+    private void toast(String msg) {
+        Toast.makeText(appContext, msg, Toast.LENGTH_LONG).show();
     }
 
-    private static void startReadyActivity(Context context) {
-        /**
-         *  After successful login  switch to Ready Screen
-         */
-        Log.d(logtag, "startReadyActivity");
-        try {
-            Intent i = new Intent(context, ReadyActivity.class);
-            mContext.startActivity(i);
-            if (mContext instanceof Activity) {
-                ((Activity) mContext).finish();
-            }
-        } catch (Exception e) {
-            Log.e(logtag, "Exception calling: " + e);
+    private void notifyStarted() {
+        if (context instanceof Listener) {
+            ((Listener) context).onRequestStarted();
         }
     }
 
-    private static void startListClipsActivity(Context context, JSONArray clips) {
-        /**
-         * Start Activity to show all decrypted Clips
-         */
-        Log.d(logtag, "startListClipsActivity");
-        try {
-            Clips myClips = Clips.getInstance();
-            myClips.setData(clips);
-            Intent i = new Intent(context, ListClipsActivity.class);
-            mContext.startActivity(i);
-        } catch (Exception e) {
-            Log.e(logtag, "Error starting Activity: " + e);
+    private void notifyFinished() {
+        if (context instanceof Listener) {
+            ((Listener) context).onRequestFinished();
         }
     }
 }

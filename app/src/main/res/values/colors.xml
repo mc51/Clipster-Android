@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#000</color>
-    <color name="colorPrimaryDark">#000</color>
-    <color name="colorAccent">#FF4081</color>
+    <!-- Monochrome brand palette, dark variants live in values-night -->
+    <color name="primary">#000000</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#E2E2E2</color>
+    <color name="on_primary_container">#1B1B1B</color>
+    <color name="secondary_container">#EAEAEA</color>
+    <color name="on_secondary_container">#1B1B1B</color>
+    <color name="background">#FFFFFF</color>
+    <color name="on_background">#1B1B1B</color>
+    <color name="on_surface_variant">#474747</color>
+    <color name="surface_container_low">#F6F6F6</color>
+    <color name="surface_container">#F0F0F0</color>
+    <color name="surface_container_high">#EAEAEA</color>
+    <color name="surface_container_highest">#E4E4E4</color>
+    <color name="outline">#767676</color>
+    <color name="outline_variant">#D0D0D0</color>
 </resources>

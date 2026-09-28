@@ -1,98 +1,107 @@
 package com.data_dive.com.clipster;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 /**
- * We're authenticated - Show main screen
- * Deal with button clicks -> requests
- *
+ * Main screen once we are logged in
  */
+public class ReadyActivity extends AppCompatActivity implements NetClient.Listener {
 
-public class ReadyActivity extends AppCompatActivity {
+    private static final int LOCAL_NETWORK_REQUEST = 1;
 
-    public final String logtag = this.getClass().getSimpleName();
-    private static final int BUTTON_DELAY = 3000;
-    TextView get_last_clip, get_all_clips, set_clip, edit_creds, server;
+    private MaterialButton getLastClip, getAllClips, shareClipboard, editCreds;
+    private LinearProgressIndicator progress;
+    private int runningRequests = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d(logtag, "onCreate");
-
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
+
+        if (!Utils.areCredsSaved(this)) {
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+            return;
+        }
 
         setContentView(R.layout.activity_ready);
 
-        server = findViewById(R.id.active_server);
-        setActiveServerAddress();
+        Credentials creds = Utils.getCreds(this);
+        ((TextView) findViewById(R.id.active_user)).setText(getString(R.string.logged_in_as, creds.user));
+        ((TextView) findViewById(R.id.active_server)).setText(creds.server);
 
-        get_last_clip = findViewById(R.id.get_last_clip);
-        get_all_clips = findViewById(R.id.get_all_clips);
-        set_clip = findViewById(R.id.set_clip);
-        edit_creds = findViewById(R.id.edit_creds);
+        progress = findViewById(R.id.progress);
+        getLastClip = findViewById(R.id.get_last_clip);
+        getAllClips = findViewById(R.id.get_all_clips);
+        shareClipboard = findViewById(R.id.set_clip);
+        editCreds = findViewById(R.id.edit_creds);
 
-        get_last_clip.setOnClickListener(btnListener);
-        get_last_clip.setTag("get_last_clip");
-        get_all_clips.setOnClickListener(btnListener);
-        get_all_clips.setTag("get_all_clips");
-        set_clip.setOnClickListener(btnListener);
-        set_clip.setTag("set_clip");
-        edit_creds.setOnClickListener(btnListener);
-        edit_creds.setTag("edit_creds");
-    }
-
-    private View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
-        public void onDebouncedClick(View v) {
-            // Delay excessive clicks
-            String action_tag = v.getTag().toString();
-            Log.d(logtag, "Clicked Button: " + action_tag);
-            prepareClipRequest(action_tag);
-        }
-    };
-
-    private void setActiveServerAddress() {
-        // set currently used server address
-        if(Utils.areCredsSaved(this)) {
-            Log.d(logtag, "Creds saved, getting active server address");
-            Credentials creds = Utils.getCreds(this);
-            server.setText(creds.server);
-        } else {
-            Log.d(logtag, "Creds not saved. Not displaying active server");
-            server.setText("No saved server");
-        }
-    }
-
-    private void prepareClipRequest(String action) {
-        if(action.equals("get_last_clip")) {
-            Log.d(logtag,"Calling GetLastClip function");
-            NetClient client = new NetClient(this);
-            client.GetLastClipFromServer();
-        } else if(action.equals("get_all_clips")) {
-            Log.d(logtag, "Calling GetAllClips function");
-            NetClient client = new NetClient(this);
-            client.GetAllClipsFromServer();
-        } else if(action.equals("set_clip")) {
-            Log.d(logtag, "Calling SetClip function");
-            String clip = Utils.checkClipboard(this);
-            if (clip.isEmpty()) {
-                Toast.makeText(this, getString(R.string.app_name) + " - Clipboard is empty",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
-            NetClient client = new NetClient(this);
-            client.SetClipOnServer(clip, null);
-        } else if(action.equals("edit_creds")) {
-            Log.d(logtag, "Calling edit_creds -> Start Main Activity");
-            Intent i = new Intent(this, MainActivity.class);
-            i.setAction(Intent.ACTION_EDIT);
-            startActivity(i);
+        getLastClip.setOnClickListener(v -> new NetClient(this).getLastClip());
+        getAllClips.setOnClickListener(v -> new NetClient(this).getAllClips());
+        shareClipboard.setOnClickListener(v -> shareClipboard());
+        editCreds.setOnClickListener(v -> {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setAction(Intent.ACTION_EDIT);
+            startActivity(intent);
             finish();
+        });
+
+        if (savedInstanceState == null) {
+            requestLocalNetworkIfNeeded(creds.server);
+            if (MainActivity.ACTION_GET_LAST_CLIP.equals(getIntent().getAction())) {
+                new NetClient(this).getLastClip();
+            }
         }
+    }
+
+    /** E.g. after updating to Android 17 with a server on the local network */
+    private void requestLocalNetworkIfNeeded(String server) {
+        if (!LocalNetwork.isPermissionMissing(this)) {
+            return;
+        }
+        Async.run(() -> LocalNetwork.isLocalServer(server), (isLocal, error) -> {
+            if (Boolean.TRUE.equals(isLocal) && !isFinishing()) {
+                requestPermissions(new String[] {LocalNetwork.PERMISSION}, LOCAL_NETWORK_REQUEST);
+            }
+        });
+    }
+
+    private void shareClipboard() {
+        String clip = Utils.readClipboardText(this);
+        if (clip.isEmpty()) {
+            Toast.makeText(this, R.string.msg_clipboard_empty, Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        new NetClient(this).shareClip(clip, Clip.FORMAT_TXT);
+    }
+
+    @Override
+    public void onRequestStarted() {
+        runningRequests++;
+        updateLoading();
+    }
+
+    @Override
+    public void onRequestFinished() {
+        runningRequests = Math.max(0, runningRequests - 1);
+        updateLoading();
+    }
+
+    private void updateLoading() {
+        boolean loading = runningRequests > 0;
+        progress.setVisibility(loading ? View.VISIBLE : View.INVISIBLE);
+        getLastClip.setEnabled(!loading);
+        getAllClips.setEnabled(!loading);
+        shareClipboard.setEnabled(!loading);
+        editCreds.setEnabled(!loading);
     }
 }

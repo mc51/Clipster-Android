@@ -1,116 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--  Template from http://seotoolzz.com/free-android-app-templates/login-signup-black.php -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/grdnt"
+    android:fillViewport="true"
     android:fitsSystemWindows="true">
-    <LinearLayout
+
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:paddingLeft="60dp"
-        android:paddingRight="60dp">
+        android:layout_height="wrap_content">
+
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-            <LinearLayout
+            android:orientation="vertical"
+            android:padding="@dimen/screen_padding"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_max="@dimen/content_max_width">
+
+            <!-- 250x135 px bitmap in drawable-nodpi, shown at the size it always had -->
+            <ImageView
+                android:layout_width="250dp"
+                android:layout_height="135dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="@dimen/spacing_large"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/clipster_250_banner"
+                app:tint="?attr/colorOnSurface" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Material3.CardView.Filled"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp">
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:contentDescription="host icon"
-                    android:src="@drawable/cloud" />
-                <TextView
-                    android:id="@+id/active_server"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="15dp"
-                    android:background="#00000000"
-                    android:letterSpacing="0.1"
-                    android:text="@string/default_host"
-                    android:textColor="#000000"
-                    android:textColorHint="#000000"
-                    android:textSize="14dp" />
-            </LinearLayout>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/spacing_medium">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_cloud" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_medium"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/active_user"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            tools:text="Logged in as alice" />
+
+                        <TextView
+                            android:id="@+id/active_server"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            tools:text="https://clipster.cc" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:indeterminate="true"
+                android:visibility="invisible" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/get_last_clip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:text="@string/get_last_clip" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/get_all_clips"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/get_all_clips" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/set_clip"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/set_clip" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/edit_creds"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_small"
+                android:text="@string/edit_creds" />
         </LinearLayout>
-    </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingLeft="80dp"
-        android:paddingRight="80dp"
-        android:orientation="vertical"
-        android:gravity="bottom"
-        android:layout_marginBottom="80dp">
-        <TextView
-            android:id="@+id/get_last_clip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="10dp"
-            android:background="#000000"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/get_last_clip"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-        <TextView
-            android:id="@+id/get_all_clips"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="10dp"
-            android:background="#000000"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/get_all_clips"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-        <TextView
-            android:id="@+id/set_clip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="10dp"
-            android:background="#000000"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/set_clip"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-        <TextView
-            android:id="@+id/edit_creds"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="10dp"
-            android:background="#000000"
-            android:gravity="center"
-            android:padding="16dp"
-            android:text="@string/edit_creds"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-    </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center_horizontal"
-        android:layout_marginTop="60dp">
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/clipster_250_banner"
-            android:contentDescription="Clipster header"
-            />
-    </LinearLayout>
-</RelativeLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

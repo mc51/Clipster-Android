@@ -4,23 +4,22 @@ package com.data_dive.com.clipster;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
 
-import com.amdelamar.jhash.Hash;
-import com.amdelamar.jhash.algorithms.Type;
 import com.macasaet.fernet.Key;
-import com.macasaet.fernet.StringValidator;
-import com.macasaet.fernet.Token;
-import com.macasaet.fernet.TokenValidationException;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,19 +28,20 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.temporal.TemporalAmount;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Locale;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
 
 /**
  * implement common functions that are used in different Activities / Classes
+ * Never log credentials, hashes, tokens or clip contents here.
  */
 
 public class Utils {
 
-    private static String logtag = "Utils";
+    private static final String logtag = "Utils";
 
     private static final String PREF_FILE = "pref_file";
     private static final String PREF_IS_SAVED = "saved_id";
@@ -52,19 +52,16 @@ public class Utils {
     private static final String PREF_CRED_TOKEN = "cred_token";
     private static final String PREF_CRED_IGNORE_CERT = "cred_ignore_cert";
 
-    private static final Integer CRYPT_TOKEN_TTL = 3650;
-    public static final Integer CRYPT_ITERS_LOGIN_HASH = 20000;
-    public static final Integer CRYPT_ITERS_MSG_HASH = 10000;
-    private static final Integer CRYPT_HASH_LENGTH = 32;
+    public static final String FORMAT_TXT = "txt";
+    public static final String FORMAT_IMG = "img";
 
-    public static final Integer MAX_CLIP_SHOW_LEN = 120;
-    public static final Integer MIN_PW_LENGTH = 8;
+    public static final int MAX_CLIP_SHOW_LEN = 120;
+    public static final int MIN_PW_LENGTH = 8;
 
 
     public static boolean areCredsSaved(Context context) {
         // Check if valid creds are saved to file already. Invalid ones (e.g. corrupted or
         // restored from a backup of an older version) are cleared so the user can log in again.
-        Log.d(logtag, "AreCredsSaved");
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         if (!pref.getBoolean(PREF_IS_SAVED, false)) {
             return false;
@@ -73,20 +70,14 @@ public class Utils {
             getCreds(context);
             return true;
         } catch (RuntimeException e) {
-            Log.e(logtag, "Saved credentials are invalid, clearing them: " + e);
+            Log.e(logtag, "Saved credentials are invalid, clearing them: " + e.getClass().getSimpleName());
             clearCreds(context);
             return false;
         }
     }
 
     public static void saveCreds(Context context, Credentials creds) {
-        // Save Creds to shared preferences file
-        Log.d(logtag, creds.toString());
-        Log.d(logtag, "saveCreds - User: " + creds.user + " PW: " + creds.pw
-                + " Server: " + creds.server + " Token: " + creds.token_b64
-                + " Ignore Cert: " + creds.ignore_cert
-                + " Login PW Hash: " + creds.login_pw_hash
-                + " Msg PW Hash: " + creds.msg_pw_hash);
+        Log.d(logtag, "saveCreds: " + creds);
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
         editor.putString(PREF_CRED_USER, creds.user);
@@ -102,64 +93,59 @@ public class Utils {
     public static Credentials getCreds(Context context) {
         // Read credentials from file and create Credentials object
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
-        String user = pref.getString(PREF_CRED_USER, "");
-        String login_pw_hash = pref.getString(PREF_CRED_LOGIN_PW_HASH, "");
-        String msg_pw_hash = pref.getString(PREF_CRED_MSG_PW_HASH, "");
-        String server = pref.getString(PREF_CRED_SERVER, "");
-        boolean ignore_cert = pref.getBoolean(PREF_CRED_IGNORE_CERT, false);
-
-        Credentials creds = new Credentials(user, "", login_pw_hash, msg_pw_hash, server, ignore_cert);
-
-        Log.d(logtag, "getCreds: " + user + " " + login_pw_hash + " " + msg_pw_hash + " "
-                + server + " " + ignore_cert);
-        return creds;
+        return Credentials.fromSavedHashes(
+                pref.getString(PREF_CRED_USER, ""),
+                pref.getString(PREF_CRED_LOGIN_PW_HASH, ""),
+                pref.getString(PREF_CRED_MSG_PW_HASH, ""),
+                pref.getString(PREF_CRED_SERVER, ""),
+                pref.getBoolean(PREF_CRED_IGNORE_CERT, false));
     }
 
     public static void clearCreds(Context context) {
-        // Clear all saved shared pref files
-        Log.d(logtag, "Clearning creds from file");
         SharedPreferences pref = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = pref.edit();
-        editor.clear().commit();
+        pref.edit().clear().apply();
     }
 
-    public static void setClipboard(Context context, String clip_text, String clip_format) {
-        // Copy content to clipboard and display message
-        String clip_text_show = "";
-        ClipData clip = null;
-        ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
-
-        if (clip_format.equals("txt")) {
-            clip_text_show = clip_text.substring(0, Math.min(clip_text.length(), MAX_CLIP_SHOW_LEN));
-            if (clip_text.length() > MAX_CLIP_SHOW_LEN) {
-                clip_text_show = clip_text_show + " [...]";
-            }
-            Log.d(logtag, "Storing text to clipboard: " + clip_text);
-            clip = ClipData.newPlainText("Clipster", clip_text);
-        } else if (clip_format.equals("img")) {
-            Log.d(logtag, "Not implemented for images, because not supported by most Apps");
-            Bitmap image = Utils.B64StringToImage(clip_text);
-            if (image != null) {
-                Uri imageUri = BitmapToTempFileAsUri(context, image);
-                clip = ClipData.newRawUri("Clipster Image", imageUri);
-                clip_text_show = "Image";
-            }
+    public static String clipPreview(Context context, String clip_text, String clip_format) {
+        if (FORMAT_IMG.equals(clip_format)) {
+            return context.getString(R.string.clip_preview_image);
         }
+        if (clip_text.length() > MAX_CLIP_SHOW_LEN) {
+            return clip_text.substring(0, MAX_CLIP_SHOW_LEN) + " [...]";
+        }
+        return clip_text;
+    }
 
+    /**
+     * Create the clipboard content for a clip. Images are decoded and written to a temp file,
+     * so call this in the background. Returns null if the clip can't be converted.
+     */
+    public static ClipData createClipData(Context context, String clip_text, String clip_format) {
+        if (FORMAT_IMG.equals(clip_format)) {
+            Uri imageUri = BitmapToTempFileAsUri(context, B64StringToImage(clip_text));
+            if (imageUri == null) {
+                return null;
+            }
+            return ClipData.newUri(context.getContentResolver(), "Clipster Image", imageUri);
+        }
+        return ClipData.newPlainText("Clipster", clip_text);
+    }
+
+    public static void setClipboard(Context context, ClipData clip, String preview) {
         if (clip == null) {
-            Log.e(logtag, "Could not create clip for format: " + clip_format);
-            Toast.makeText(context, context.getString(R.string.app_name) + " - Could not set clipboard",
-                    Toast.LENGTH_LONG).show();
+            Toast.makeText(context, R.string.error_set_clipboard, Toast.LENGTH_LONG).show();
             return;
         }
+        ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
         cb.setPrimaryClip(clip);
-        // Show Preview
-        Toast.makeText(context, context.getString(R.string.app_name) + " - set Clipboard to:\n"
-                + clip_text_show, Toast.LENGTH_LONG).show();
+        // From Android 13 on the system shows its own confirmation with a preview
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(context, context.getString(R.string.msg_clipboard_set, preview),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     public static String checkClipboard(Context context) {
-        Log.d(logtag, "checkClipboard");
         String clip = "";
         ClipboardManager cb = (ClipboardManager) context.getSystemService(CLIPBOARD_SERVICE);
         ClipData cd = cb.getPrimaryClip();
@@ -169,112 +155,65 @@ public class Utils {
             if (text != null) {
                 clip = text.toString();
             }
-            Log.d(logtag, "Clipboard checked:\n" + clip);
         }
         return clip;
     }
 
-    public static String stringToHash(String username, String text, Integer iters) {
-        /**
-         * Create a hash representation of text using PBKDF2
-         */
-        String hash = "";
-        String salt_string = "clipster_"+username+"_"+text;
-        try {
-            byte[] salt = salt_string.getBytes(StandardCharsets.UTF_8);
-            String h = Hash.password(text.toCharArray())
-                    .algorithm(Type.PBKDF2_SHA256)
-                    .salt(salt)
-                    .hashLength(CRYPT_HASH_LENGTH)
-                    .factor(iters)
-                    .create();
-            hash = h.split(":")[6]; // jhash returns 7 concatenated strings, last one is hash
-            Log.d(logtag, "JHash output: " + h);
-        } catch (Exception e) {
-            Log.e(logtag, "Error creating Hash for Key: " + e);
-        }
-        // jHash uses b64 standard i.e. not urlsafe encoding "/" "+" -> "_" "-"
-        hash = hash.replace("/","_").replace("+", "-");
-        Log.d(logtag, "Hash : " + hash);
-        return hash;
-    }
-
-    public static String encryptText(Context context, String text) {
-        // Encrypt Text with Fernet  using key and output b64 representation
-        Credentials credentials = getCreds(context);
-        Key key = credentials.encryption_key;
-        Token token = Token.generate(key, text);
-        return token.serialise();
-    }
-
-    public static String decryptClip(Context context, String text) {
-        // Decrypt Text with Fernet using key and return it as string
-        Credentials credentials = getCreds(context);
-        Key key = credentials.encryption_key;
-        String cleartext = "";
-
-        StringValidator validator = new StringValidator() {
-            @Override
-            public TemporalAmount getTimeToLive() {
-                // need to overwrite in order to set ttl of token
-                return Duration.ofDays(CRYPT_TOKEN_TTL);
-            }
-        };
-
-        try {
-            Token token = Token.fromString(text);
-            cleartext = token.validateAndDecrypt(key, validator);
-        } catch (TokenValidationException e) {
-            Log.e(logtag, "Decrypt Error:" + e);
-            cleartext = "ERROR: Could not decrypt clip";
-        } catch (RuntimeException e) {
-            // Token.fromString throws IllegalArgumentException on malformed tokens
-            Log.e(logtag, "Decrypt Error, malformed token: " + e);
-            cleartext = "ERROR: Could not decrypt clip";
-        }
-        Log.d(logtag, "CRYPTO: " + cleartext);
-        return cleartext;
-    }
-
     public static boolean validateServerURI(String server_uri) {
-        /**
+        /*
          *  Basic validity check for the server address
          */
-        if(server_uri.startsWith("https://localhost")) { return true; }
+        if (server_uri.startsWith("https://localhost")) { return true; }
         return android.util.Patterns.WEB_URL.matcher(server_uri).matches();
     }
 
     public static String formatURIProtocol(String server_uri) {
-        /**
+        /*
          *  Make sure we always use https:// and have no trailing slashes in URI
          */
-        server_uri = server_uri.replaceFirst("/*$", "");
-        try {
-            if (server_uri.substring(0, 7).toLowerCase().startsWith("http://")) {
-                Log.d(logtag, "server contains http:// replacing with https://");
-                server_uri = server_uri.replace("http://", "https://");
-            } else if (!server_uri.substring(0, 8).toLowerCase().startsWith("https://")) {
-                Log.w(logtag, "No protocol provided, adding https://");
-                server_uri = "https://" + server_uri;
-            }
-            return server_uri;
-        } catch (Exception e) {
-            Log.e(logtag, e.toString());
-            return server_uri;
+        String uri = server_uri.trim().replaceFirst("/+$", "");
+        String lower = uri.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("https://")) {
+            return "https://" + uri.substring("https://".length());
         }
+        if (lower.startsWith("http://")) {
+            return "https://" + uri.substring("http://".length());
+        }
+        return "https://" + uri;
     }
 
     public static Bitmap B64StringToImage(String imgString) {
-        // Decode base64 string containing image to Bitmap image and return
-        Bitmap decodedImage = null;
+        // Decode base64 string containing image to Bitmap image, null if it's not a valid image
         try {
             byte[] imgBytes = Base64.decode(imgString, Base64.DEFAULT);
-            decodedImage = BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length);
-        } catch (Exception e) {
-            Log.e(logtag, "Error B64StringToImage:" + e);
-            // TODO: Return placeholder image if no valid image found
+            return BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length);
+        } catch (IllegalArgumentException e) {
+            Log.e(logtag, "Error B64StringToImage: " + e);
+            return null;
         }
-        return decodedImage;
+    }
+
+    /**
+     * Decode a base64 image downsampled by powers of two, while keeping the longer side at least
+     * maxSize pixels. Saves a lot of memory for list thumbnails.
+     */
+    public static Bitmap B64StringToThumbnail(String imgString, int maxSize) {
+        try {
+            byte[] imgBytes = Base64.decode(imgString, Base64.DEFAULT);
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length, opts);
+            int sample = 1;
+            while (Math.max(opts.outWidth, opts.outHeight) / (sample * 2) >= maxSize) {
+                sample *= 2;
+            }
+            opts.inJustDecodeBounds = false;
+            opts.inSampleSize = sample;
+            return BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length, opts);
+        } catch (IllegalArgumentException e) {
+            Log.e(logtag, "Error B64StringToThumbnail: " + e);
+            return null;
+        }
     }
 
     public static String BitmapToB64String(Bitmap imageBitmap) {
@@ -282,92 +221,102 @@ public class Utils {
         if (imageBitmap == null) {
             return null;
         }
-        byte[] imageBytes = null;
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, bos);
-            imageBytes = bos.toByteArray();
-        } catch (Exception e) {
-            Log.e(logtag, "Error BitmapToB64String:" + e);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        if (!imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)) {
+            Log.e(logtag, "Error BitmapToB64String: compress failed");
             return null;
         }
-        return Base64.encodeToString(imageBytes, Base64.DEFAULT);
+        return Base64.encodeToString(bos.toByteArray(), Base64.DEFAULT);
     }
 
-    public static JSONArray DecryptClips(Context mContext, JSONArray clips) {
-        // DecryptClips from encrypted text to cleartext, add text_decrypted key to clips
-        String text;
-        JSONObject clip;
-
-        for(int i=0;i<clips.length();i++) {
+    /**
+     * Decrypt all clips and add the cleartext as "text_decrypted". Clips that can't be decrypted
+     * get errorText instead, so one bad clip doesn't hide the others.
+     */
+    public static JSONArray decryptClips(JSONArray clips, Key key, String errorText) {
+        for (int i = 0; i < clips.length(); i++) {
             try {
-                clip = clips.getJSONObject(i);
-                text = clip.getString("text");
-                String text_decrypted = Utils.decryptClip(mContext, text);
+                JSONObject clip = clips.getJSONObject(i);
+                String text_decrypted;
+                try {
+                    text_decrypted = Crypto.decrypt(key, clip.getString("text"));
+                } catch (RuntimeException e) {
+                    Log.e(logtag, "Could not decrypt clip " + i + ": " + e.getClass().getSimpleName());
+                    text_decrypted = errorText;
+                    clip.put("format", FORMAT_TXT);
+                }
                 clip.put("text_decrypted", text_decrypted);
-                clips.put(i, clip);
-                Log.d(logtag, "Processed:" + clips.getJSONObject(i).getString("text_decrypted"));
-            } catch(JSONException e) {
+            } catch (JSONException e) {
+                Log.e(logtag, "Invalid clip " + i + ": " + e);
             }
         }
         return clips;
     }
 
-    public static Uri BitmapToTempFileAsUri(Context mContext, Bitmap bitmap) {
-        // Store Bitmap image to a temp .png file and return uri via FileProvider
-        File file = new File(mContext.getCacheDir(),"tmp.png");
-        Log.d(logtag, "file: " + file);
-        try {
-            FileOutputStream fOut = new FileOutputStream(file);
+    public static Uri BitmapToTempFileAsUri(Context context, Bitmap bitmap) {
+        // Store Bitmap image to a temp .png file and return uri via FileProvider, null on failure
+        if (bitmap == null) {
+            return null;
+        }
+        File file = new File(context.getCacheDir(), "tmp.png");
+        try (FileOutputStream fOut = new FileOutputStream(file)) {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, fOut);
-            fOut.flush();
-            fOut.close();
-            file.setReadable(true, false);
-        } catch (Exception e) {
-            Log.e(logtag, "Error: " + e);
+        } catch (IOException e) {
+            Log.e(logtag, "Error writing temp image: " + e);
+            return null;
         }
-        Uri imageUri = FileProvider.getUriForFile(
-                mContext,
-                "com.data_dive.com.clipster.provider",
-                file);
-        Log.d(logtag, "URI: " + imageUri);
-        return imageUri;
+        return FileProvider.getUriForFile(context, context.getPackageName() + ".provider", file);
     }
 
-    public static Bitmap ImageUriToBitmap(Context mContext, Uri imageUri) {
-        //  Get Image from URI and transform to B64 encoded Image
-        Bitmap imageBitmap = null;
+    public static Bitmap ImageUriToBitmap(Context context, Uri imageUri) {
+        // Load an image from a content URI, null if it can't be read
+        ContentResolver cr = context.getContentResolver();
         try {
-            ContentResolver cr = mContext.getContentResolver();
-            imageBitmap = MediaStore.Images.Media.getBitmap(cr, imageUri);
-        } catch(Exception e) {
-            Toast.makeText(mContext, "Error:\nCould not open shared Image", Toast.LENGTH_LONG).show();
-            Log.e(logtag, "Error: " + e);
-        }
-        return imageBitmap;
-    }
-
-    public static String ImageUriToB64String(Context mContext, Uri imageUri) {
-        //  Get Image from URI and transform to B64 encoded Image
-        Bitmap imageBitmap = ImageUriToBitmap(mContext, imageUri);
-        return BitmapToB64String(imageBitmap);
-    }
-
-    public static void SaveBitmapToGallery(Context mContext, Bitmap image, String title, String description) {
-        // SaveBitmapToGallery and show Toast on success
-        // TODO: Add date to filename so not to overwrite?
-        try {
-            ContentResolver cr = mContext.getContentResolver();
-            if (image == null || MediaStore.Images.Media.insertImage(cr, image, title, description) == null) {
-                throw new IllegalStateException("insertImage failed");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Software bitmap, hardware bitmaps can't be compressed to PNG
+                return ImageDecoder.decodeBitmap(ImageDecoder.createSource(cr, imageUri),
+                        (decoder, info, source) -> decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE));
             }
-        } catch(Exception e) {
-            Toast.makeText(mContext, "Error:\nCould not save Image to Gallery", Toast.LENGTH_LONG).show();
-            Log.e(logtag, "Error: " + e);
-            return;
+            return MediaStore.Images.Media.getBitmap(cr, imageUri);
+        } catch (IOException | SecurityException e) {
+            Log.e(logtag, "Error reading shared image: " + e);
+            return null;
         }
-        Toast.makeText(mContext, "Image saved to Gallery", Toast.LENGTH_LONG).show();
-        Log.d(logtag, "Saved image to gallery: " + title + " " + description);
+    }
+
+    public static String ImageUriToB64String(Context context, Uri imageUri) {
+        return BitmapToB64String(ImageUriToBitmap(context, imageUri));
+    }
+
+    /**
+     * Save image to the gallery (Pictures/Clipster from Android 10 on). Returns true on success.
+     */
+    public static boolean SaveBitmapToGallery(Context context, Bitmap image) {
+        if (image == null) {
+            return false;
+        }
+        ContentResolver cr = context.getContentResolver();
+        String name = "clipster_" + System.currentTimeMillis() + ".png";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+            values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Clipster");
+            Uri uri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                return false;
+            }
+            try (OutputStream os = cr.openOutputStream(uri)) {
+                if (os != null && image.compress(Bitmap.CompressFormat.PNG, 100, os)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                Log.e(logtag, "Error saving image: " + e);
+            }
+            cr.delete(uri, null, null);
+            return false;
+        }
+        return MediaStore.Images.Media.insertImage(cr, image, name, "Image shared via Clipster") != null;
     }
 
 }

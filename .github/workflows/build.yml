@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v7
+        with:
+          # Tags are needed to derive the version for manual (non-tag) runs
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v6
@@ -46,8 +49,14 @@ jobs:
             echo "keyPassword=$KEY_PASSWORD"
           } > secret
 
-      - name: Build the app
-        run: ./gradlew assembleRelease
+      # versionName and versionCode are derived from the tag, see app/build.gradle
+      - name: Test and build the app
+        run: |
+          version_args=()
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version_args+=("-PappVersion=$GITHUB_REF_NAME")
+          fi
+          ./gradlew "${version_args[@]}" testDebugUnitTest assembleRelease
 
       - name: Verify signature
         run: |

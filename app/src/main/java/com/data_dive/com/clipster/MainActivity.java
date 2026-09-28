@@ -1,109 +1,107 @@
 package com.data_dive.com.clipster;
 
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 /**
  *  Launcher Activity which checks if we need to setup first or can go straight to ready mode
  */
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements NetClient.Listener {
 
     private final static String logtag = "MainActivity";
-    private final static int BUTTON_DELAY = 2000;
+    // Launched by the app shortcut, see res/xml/shortcuts.xml
+    public static final String ACTION_GET_LAST_CLIP = "com.data_dive.com.clipster.action.GET_LAST_CLIP";
 
     private String SERVER_URI;
-    EditText password, user, server;
-    CheckBox ignore_cert;
-    TextView register, login;
-    String usr, pw, srv;
+    private TextInputLayout user_layout, pw_layout, server_layout;
+    private TextInputEditText password, user, server;
+    private MaterialCheckBox ignore_cert;
+    private MaterialButton register, login;
+    private LinearProgressIndicator progress;
+    private int running_tasks = 0;
 
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d(logtag, "on Resume: Check for creds");
         checkForCreds();
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d(logtag, "Oncreate");
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
 
-        SERVER_URI = getResources().getString(R.string.default_host);
+        SERVER_URI = getString(R.string.default_host);
 
         setContentView(R.layout.activity_main);
 
+        user_layout = findViewById(R.id.user_layout);
+        pw_layout = findViewById(R.id.pw_layout);
+        server_layout = findViewById(R.id.server_layout);
         user = findViewById(R.id.user);
         password = findViewById(R.id.pw);
         server = findViewById(R.id.server);
         login = findViewById(R.id.login);
         register = findViewById(R.id.register);
         ignore_cert = findViewById(R.id.ignore_cert);
+        progress = findViewById(R.id.progress);
 
-        login.setOnClickListener(btnListener);
-        login.setTag("login");
-        register.setOnClickListener(btnListener);
-        register.setTag("register");
+        login.setOnClickListener(v -> prepareSetupRequest(true));
+        register.setOnClickListener(v -> prepareSetupRequest(false));
+
+        if (Intent.ACTION_EDIT.equals(getIntent().getAction()) && savedInstanceState == null) {
+            displaySavedCredsAsDefaults();
+        }
     }
 
-    private final View.OnClickListener btnListener = new DebouncedOnClickListener(BUTTON_DELAY, this) {
-        public void onDebouncedClick(View v) {
-            // Handle Clicks but debounced
-            String action_tag = v.getTag().toString();
-            Log.d(logtag, "Clicked Button: " + action_tag);
-            prepareSetupRequest(action_tag);
-        }
-    };
-
     private void displaySavedCredsAsDefaults() {
-        // Show saved credentials as default entries
-        if(Utils.areCredsSaved(this)) {
-            Log.d(logtag, "Creds saved, setting as defaults");
+        // Show saved credentials as default entries. The password is never saved.
+        if (Utils.areCredsSaved(this)) {
             Credentials creds = Utils.getCreds(this);
             user.setText(creds.user);
-            password.setText(creds.pw);
             server.setText(creds.server);
-        } else {
-            Log.d(logtag, "Creds not saved. Not displaying defaults");
+            ignore_cert.setChecked(creds.ignore_cert);
         }
     }
 
     private void checkForCreds() {
-        // Get intent and action -> Edit Creds from ReadyActivity calls this
-        Intent intent = getIntent();
-        String action = intent.getAction();
+        // Edit Creds from ReadyActivity: stay here and allow the user to edit credentials
+        String action = getIntent().getAction();
         if (Intent.ACTION_EDIT.equals(action)) {
-            // Allow user to edit credentials
-            displaySavedCredsAsDefaults();
-            Log.d(logtag, "Received ACTION_EDIT Intent. Allow to edit credentials.");
-        } else {
-            // if Creds are saved skip to ReadyActivity
-            Log.d(logtag, "Skip to check for Creds");
-            if (!Utils.areCredsSaved(this)) {
-                Log.d(logtag, "Creds are not saved yet. Ask for them.");
-            } else {
-                Log.d(logtag, "Creds available. Switch to Ready Activity.");
-                Intent i = new Intent(this, ReadyActivity.class);
-                startActivity(i);
-                finish();
+            return;
+        }
+        if (Utils.areCredsSaved(this)) {
+            Intent i = new Intent(this, ReadyActivity.class);
+            if (ACTION_GET_LAST_CLIP.equals(action)) {
+                i.setAction(ACTION_GET_LAST_CLIP);
             }
+            startActivity(i);
+            finish();
+        } else if (ACTION_GET_LAST_CLIP.equals(action)) {
+            Toast.makeText(this, R.string.msg_login_first, Toast.LENGTH_LONG).show();
+            // Only show the hint once, not on every resume
+            getIntent().setAction(Intent.ACTION_MAIN);
         }
     }
 
-    private void prepareSetupRequest(String action) {
-        // Start Setup process: register or login
-        usr = user.getText().toString();
-        pw = password.getText().toString();
-        srv = server.getText().toString();
+    private void prepareSetupRequest(boolean isLogin) {
+        // Validate input, then register or login
+        String usr = text(user);
+        String pw = text(password);
+        String srv = text(server).trim();
         boolean ignore = ignore_cert.isChecked();
 
         if (srv.isEmpty()) {
@@ -111,39 +109,59 @@ public class MainActivity extends AppCompatActivity {
         }
         srv = Utils.formatURIProtocol(srv);
 
-        if (usr.isEmpty() || pw.isEmpty()) {
-            Toast.makeText(this, getString(R.string.app_name) +
-                    " - Please enter an username and password", Toast.LENGTH_LONG).show();
+        user_layout.setError(usr.isEmpty() ? getString(R.string.error_username_required) : null);
+        if (pw.isEmpty()) {
+            pw_layout.setError(getString(R.string.error_password_required));
         } else if (pw.length() < Utils.MIN_PW_LENGTH) {
-            Toast.makeText(this, getString(R.string.app_name) +
-                    " - Your password must be at least " + Utils.MIN_PW_LENGTH.toString() + " characters long",
-                    Toast.LENGTH_LONG).show();
-        } else if (!Utils.validateServerURI(srv)) {
-            Log.e(logtag, "server uri INVALID: " + srv);
-            Toast.makeText(this, getString(R.string.app_name) +
-                            " - Invalid server address.\nFormat should be: https://clipster.cc:9999",
-                    Toast.LENGTH_LONG).show();
+            pw_layout.setError(getResources().getQuantityString(R.plurals.error_password_too_short,
+                    Utils.MIN_PW_LENGTH, Utils.MIN_PW_LENGTH));
         } else {
-            Log.d(logtag, "server uri VALID: " + srv);
-            Log.d(logtag, "Disable ssl certificate check: " + ignore);
-            Credentials creds;
-            try {
-                creds = new Credentials(usr, pw, "", "", srv, ignore);
-            } catch (RuntimeException e) {
-                Log.e(logtag, "Could not create credentials: " + e);
-                Toast.makeText(this, getString(R.string.app_name) +
-                        " - Could not create encryption key from password", Toast.LENGTH_LONG).show();
+            pw_layout.setError(null);
+        }
+        server_layout.setError(Utils.validateServerURI(srv) ? null : getString(R.string.error_server_invalid));
+        if (user_layout.getError() != null || pw_layout.getError() != null || server_layout.getError() != null) {
+            return;
+        }
+
+        final String final_srv = srv;
+        onRequestStarted();
+        // Key derivation is deliberately slow, keep it off the main thread
+        Async.run(() -> Credentials.fromPassword(usr, pw, final_srv, ignore), (creds, error) -> {
+            onRequestFinished();
+            if (error != null) {
+                Log.e(logtag, "Could not create credentials: " + error.getClass().getSimpleName());
+                Toast.makeText(this, R.string.error_key_derivation, Toast.LENGTH_LONG).show();
                 return;
             }
             NetClient client = new NetClient(this, creds);
-
-            if (action.equals("login")) {
-                Log.d(logtag, "Calling login function");
+            if (isLogin) {
                 client.Login();
-            } else if (action.equals("register")) {
-                Log.d(logtag, "Calling register function");
+            } else {
                 client.Register();
             }
-        }
+        });
+    }
+
+    private static String text(TextInputEditText field) {
+        return field.getText() != null ? field.getText().toString() : "";
+    }
+
+    @Override
+    public void onRequestStarted() {
+        running_tasks++;
+        updateLoading();
+    }
+
+    @Override
+    public void onRequestFinished() {
+        running_tasks = Math.max(0, running_tasks - 1);
+        updateLoading();
+    }
+
+    private void updateLoading() {
+        boolean loading = running_tasks > 0;
+        progress.setVisibility(loading ? View.VISIBLE : View.INVISIBLE);
+        login.setEnabled(!loading);
+        register.setEnabled(!loading);
     }
 }

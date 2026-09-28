@@ -2,6 +2,24 @@ plugins {
     id 'com.android.application'
 }
 
+// The git tag (vMAJOR.MINOR.PATCH) is the only place the version is maintained.
+// The release workflow passes it with -PappVersion=v1.2.3, local builds use the latest tag.
+def appVersion = providers.gradleProperty('appVersion').orElse(
+        providers.exec {
+            commandLine 'git', 'describe', '--tags', '--abbrev=0', '--match', 'v*'
+            ignoreExitValue = true
+        }.standardOutput.asText.map { it.trim() ?: 'v0.0.1' }
+).get()
+
+def versionMatch = appVersion =~ /^v?(\d+)\.(\d+)\.(\d+)$/
+if (!versionMatch.matches()) {
+    throw new GradleException("Version '$appVersion' must look like v1.2.3")
+}
+def (versionMajor, versionMinor, versionPatch) = (1..3).collect { versionMatch.group(it).toInteger() }
+if (versionMinor > 99 || versionPatch > 99) {
+    throw new GradleException("Minor and patch version must be below 100 to keep versionCode increasing")
+}
+
 android {
 
     def keyProps = new Properties()
@@ -27,16 +45,19 @@ android {
     }
 
     defaultConfig {
+        // Also hardcoded in res/xml/shortcuts.xml
         applicationId = "com.data_dive.com.clipster"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.6.0"
+        // e.g. v0.7.2 -> 702. Must only ever increase, Android refuses to install downgrades.
+        versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+        versionName = "$versionMajor.$versionMinor.$versionPatch"
     }
 
     buildTypes {
         release {
             minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             if (keyPropsFile.exists()) {
@@ -51,12 +72,30 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    lint {
+        abortOnError = true
+        checkDependencies = false
+        // New issues fail the build, known ones are listed in the baseline.
+        // Regenerate with: ./gradlew updateLintBaseline
+        baseline = file('lint-baseline.xml')
+    }
+
+    testOptions {
+        // android.util.Log etc. return defaults instead of throwing in JVM unit tests
+        unitTests.returnDefaultValues = true
+    }
+
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'androidx.core:core:1.19.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.2'
+    implementation 'com.google.android.material:material:1.14.0'
     implementation 'com.macasaet.fernet:fernet-java8:1.5.0'
     implementation 'com.amdelamar:jhash:2.2.0'
+
+    testImplementation 'junit:junit:4.13.2'
+    // The Android SDK only ships stubs of org.json for unit tests
+    testImplementation 'org.json:json:20260814'
 }

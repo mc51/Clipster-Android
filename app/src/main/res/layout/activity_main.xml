@@ -1,171 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--  Template from http://seotoolzz.com/free-android-app-templates/login-signup-black.php -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/grdnt"
+    android:fillViewport="true"
     android:fitsSystemWindows="true">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:paddingLeft="60dp"
-        android:paddingRight="60dp">
+        android:layout_height="wrap_content">
+
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-            <LinearLayout
+            android:orientation="vertical"
+            android:padding="@dimen/screen_padding"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_max="@dimen/content_max_width">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="@dimen/spacing_large"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/clipster_250_banner"
+                app:tint="?attr/colorOnSurface" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/user_layout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp">
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/usrusr"
-                    android:layout_gravity="center"/>
-                <EditText
+                android:hint="@string/hint_username"
+                app:startIconDrawable="@drawable/ic_person">
+
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/user"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Username"
-                    android:textColorHint="#b2b2b2"
-                    android:layout_marginLeft="15dp"
-                    android:background="#00000000"
-                    android:letterSpacing="0.1"
-                    android:textSize="14dp"
+                    android:autofillHints="username"
+                    android:imeOptions="actionNext"
                     android:inputType="text"
-                    android:textColor="#000000"
-                    />
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#4a5a71"></LinearLayout>
-            <LinearLayout
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/pw_layout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp">
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/pswrd"
-                    android:layout_gravity="center"/>
-                <EditText
+                android:layout_marginTop="@dimen/spacing_small"
+                android:hint="@string/hint_password"
+                app:endIconMode="password_toggle"
+                app:startIconDrawable="@drawable/ic_lock">
+
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/pw"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Password"
-                    android:textColorHint="#b2b2b2"
-                    android:layout_marginLeft="15dp"
-                    android:background="#00000000"
+                    android:autofillHints="password"
+                    android:imeOptions="actionNext"
                     android:inputType="textPassword"
-                    android:letterSpacing="0.1"
-                    android:textSize="14dp"
-                    android:textColor="#000000"/>
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#4a5a71"></LinearLayout>
-            <LinearLayout
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/server_layout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp">
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/cloud"
-                    android:layout_gravity="center"/>
-                <EditText
+                android:layout_marginTop="@dimen/spacing_small"
+                android:hint="@string/hint_server"
+                app:helperText="@string/helper_server"
+                app:placeholderText="@string/default_host"
+                app:startIconDrawable="@drawable/ic_cloud">
+
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/server"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/default_host"
-                    android:textColorHint="#b2b2b2"
-                    android:layout_marginLeft="15dp"
-                    android:background="#00000000"
+                    android:imeOptions="actionDone"
                     android:inputType="textUri"
-                    android:letterSpacing="0.1"
-                    android:textSize="14dp"
-                    android:textColor="#000000"/>
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#4a5a71"></LinearLayout>
-            <LinearLayout
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/ignore_cert"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="16dp">
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/open_padlock" />
-                <CheckBox
-                    android:id="@+id/ignore_cert"
-                    android:text="@string/ignore_cert_radio"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColorHint="#b2b2b2"
-                    android:layout_marginLeft="15dp"
-                    android:background="#00000000"
-                    android:textSize="14dp"
-                    android:textColor="#000000"/>
-            </LinearLayout>
+                android:layout_marginTop="@dimen/spacing_small"
+                android:text="@string/ignore_cert_radio" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:indeterminate="true"
+                android:visibility="invisible" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/login"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:text="@string/login" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/register"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/register" />
         </LinearLayout>
-    </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingLeft="80dp"
-        android:paddingRight="80dp"
-        android:orientation="vertical"
-        android:gravity="bottom"
-        android:layout_marginBottom="60dp">
-        <TextView
-            android:id="@+id/login"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#000000"
-            android:text="@string/login"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_gravity="bottom"
-            android:padding="16dp"
-            android:layout_marginBottom="10dp"
-            android:letterSpacing="0.2"/>
-        <TextView
-            android:id="@+id/register"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#000000"
-            android:text="@string/register"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_gravity="bottom"
-            android:padding="16dp"
-            android:layout_marginBottom="0dp"
-            android:letterSpacing="0.2"/>
-    </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center_horizontal"
-        android:layout_marginTop="60dp">
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/clipster_250_banner"
-            android:contentDescription="Clipster header"
-            />
-    </LinearLayout>
-</RelativeLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

@@ -1,26 +1,65 @@
 <resources>
     <string name="app_name">Clipster</string>
+    <string name="default_host">https://clipster.cc</string>
+
+    <!-- Login / register -->
     <string name="login">Login</string>
     <string name="register">Register</string>
-    <string name="default_host">https://clipster.cc</string>
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="hint_server">Server</string>
+    <string name="helper_server">Leave empty to use the public server</string>
     <string name="ignore_cert_radio">Disable SSL certificate check (only use with own server)</string>
-    <string name="toggle_get_keyword">clipster</string>
+    <string name="error_username_required">Please enter a username</string>
+    <string name="error_password_required">Please enter a password</string>
+    <plurals name="error_password_too_short">
+        <item quantity="one">Must be at least %d character long</item>
+        <item quantity="other">Must be at least %d characters long</item>
+    </plurals>
+    <string name="error_server_invalid">Invalid address, e.g. https://clipster.cc:9999</string>
+    <string name="error_key_derivation">Could not create encryption key from password</string>
+
+    <!-- Main screen -->
+    <string name="logged_in_as">Logged in as %s</string>
     <string name="get_last_clip">Get last Clip</string>
     <string name="get_all_clips">Get all Clips</string>
     <string name="set_clip">Share Clipboard</string>
     <string name="edit_creds">Edit Credentials</string>
-    <string name="button_delay_msg">Please wait a few seconds before retrying</string>
-    <string name="title_activity_main2">MainActivity</string>
-    <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">First Fragment</string>
-    <string name="second_fragment_label">Second Fragment</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
-    <string name="msg_warn_clicking_too_fast">Slow down! Your clicking too fast</string>
-    <string name="copy_to_clipboard">Copy to Clipboard</string>
+
+    <!-- Clip list -->
     <string name="back">Back</string>
     <string name="empty_clip_list">There are no shared Clips yet</string>
     <string name="menu_copy_to_clipboard">Copy to Clipboard</string>
     <string name="menu_save_to_file">Save to Gallery</string>
     <string name="menu_share">Share</string>
+    <string name="share_chooser_title">Share Clip</string>
+    <string name="cd_clip_image">Shared image</string>
+
+    <!-- Sharing into the app -->
+    <string name="sharing">Sharing…</string>
+    <string name="msg_login_first">Clipster: please log in first</string>
+    <string name="error_share_unknown_type">Clipster can\'t share this type: %s</string>
+    <string name="error_open_image">Could not open the shared image</string>
+
+    <!-- App shortcut -->
+    <string name="shortcut_get_last_clip_short">Get last Clip</string>
+    <string name="shortcut_get_last_clip_long">Copy the last shared Clip</string>
+
+    <!-- Request results -->
+    <string name="msg_login_successful">Login successful</string>
+    <string name="msg_register_successful">Registration successful</string>
+    <string name="msg_no_clip_on_server">No Clip found on the server</string>
+    <string name="msg_clip_shared">Shared:\n%s</string>
+    <string name="msg_clipboard_set">Copied to clipboard:\n%s</string>
+    <string name="msg_clipboard_empty">Your clipboard is empty</string>
+    <string name="msg_image_saved">Image saved to Gallery</string>
+    <string name="clip_preview_image">Image</string>
+    <string name="error_request_failed">%1$s failed: %2$s</string>
+    <string name="error_connection">could not reach %s</string>
+    <string name="error_unauthorized">wrong username or password</string>
+    <string name="error_http_code">server error (HTTP %d)</string>
+    <string name="error_unexpected">unexpected error</string>
+    <string name="error_decrypt_clip">ERROR: Could not decrypt Clip. Was it encrypted with another password?</string>
+    <string name="error_set_clipboard">Could not copy the Clip to the clipboard</string>
+    <string name="error_save_image">Could not save the image to the Gallery</string>
 </resources>

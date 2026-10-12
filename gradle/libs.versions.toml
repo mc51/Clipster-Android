@@ -10,7 +10,7 @@ junit = "4.13.2"
 material = "1.14.0"
 okhttp = "5.5.0"
 palantirJavaFormat = "2.100.0"
-spotless = "8.10.3"
+spotless = "8.10.4"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
